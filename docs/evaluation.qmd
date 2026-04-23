@@ -1,0 +1,228 @@
+---
+title: "Evaluation"
+subtitle: "Latency, cost, and accuracy benchmarks for the cascade pipeline"
+date: today
+execute:
+  echo: true
+---
+
+## Evaluation Framework
+
+The cascade architecture is evaluated across three dimensions:
+
+1. **System Latency** — time-to-decision at each cascade layer
+2. **Cost Economics** — theoretical cost comparison vs. pure MLLM
+3. **Model Performance** — pseudo-label vs. ground-truth trained YOLOv8
+
+---
+
+## 1. System Latency
+
+Latency is measured separately per cascade layer, because each represents a distinct cost / speed trade-off.
+
+```{mermaid}
+%%| label: fig-latency
+%%| fig-cap: "Decision latency by cascade path"
+flowchart LR
+    INPUT(["Frame\ninput"])
+
+    L1_OK["Layer 1 only\n~5 ms\n(95% of frames)"]
+    L1L2_OK["Layer 1 + 2\n~20 ms\n(4% of frames)"]
+    L1L2L3["Layer 1 + 2 + 3\n~3000 ms\n(1% of frames)"]
+
+    INPUT --> L1_OK
+    INPUT --> L1L2_OK
+    INPUT --> L1L2L3
+
+    style L1_OK fill:#dcfce7
+    style L1L2_OK fill:#fef9c3
+    style L1L2L3 fill:#fee2e2
+```
+
+### Expected Benchmark Results
+
+| Path | Average Latency | % of Frames | Notes |
+|------|------------|-------------|-------|
+| Layer 1 only (no defect) | ~5 ms | ~70% | MSE < τ |
+| Layer 1 → Layer 2 (detected) | ~20 ms | ~25% | conf ≥ 85% |
+| Layer 1 → Layer 2 → Layer 3 | ~3,000 ms | ~5% | conf < 85% |
+| **Weighted average** | **~170 ms** | 100% | |
+
+::: {.callout-important}
+## Cold-Start Penalty
+Scaling Layer 2 from zero replicas takes **30–90 seconds** when the Container App has been idle. This is measured and reported separately as `cold_start_latency_s` and is **not** included in the inference latency figures above. In production, use `--min-replicas 1` during active factory shifts.
+:::
+
+---
+
+## 2. Cost Economics
+
+We compare two architectures for processing **100,000 frames**:
+
+| Architecture | Description |
+|---|---|
+| **Pure MLLM** | Every frame sent to GPT-4o |
+| **Cascade** | Layer 1 (AE) + Layer 2 (YOLOv8) + Layer 3 (GPT-4o for ~5%) |
+
+```{python}
+#| label: fig-cost-comparison
+#| fig-cap: "Cost comparison: Pure MLLM vs. Cascade (100,000 frames)"
+#| echo: true
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# ── Parameters ──────────────────────────────────────────────────────────────
+N_FRAMES = 100_000
+
+# GPT-4o pricing (Azure OpenAI, as of mid-2024)
+GPT4O_INPUT_PER_1M  = 2.50   # USD per 1M input tokens
+GPT4O_OUTPUT_PER_1M = 10.00  # USD per 1M output tokens
+AVG_INPUT_TOKENS    = 2_500  # per request (few-shot + image)
+AVG_OUTPUT_TOKENS   = 50     # per request
+
+# T4 GPU pricing on ACA (approx, per vCPU-second)
+T4_VCPU_SEC = 0.000024  # USD per vCPU-second
+YOLO_LATENCY_S = 0.015  # seconds per frame on T4
+YOLO_VCPUS = 8
+
+# ── Cost calculations ─────────────────────────────────────────────────────
+def gpt4o_cost(n):
+    input_cost  = (n * AVG_INPUT_TOKENS  / 1_000_000) * GPT4O_INPUT_PER_1M
+    output_cost = (n * AVG_OUTPUT_TOKENS / 1_000_000) * GPT4O_OUTPUT_PER_1M
+    return input_cost + output_cost
+
+def yolo_cost(n):
+    return n * YOLO_LATENCY_S * YOLO_VCPUS * T4_VCPU_SEC
+
+# Pure MLLM: every frame goes to GPT-4o
+pure_mllm_cost = gpt4o_cost(N_FRAMES)
+
+# Cascade: ~5% of frames reach GPT-4o; all flagged frames (~30%) go through YOLOv8
+cascade_flagged_fraction = 0.30
+cascade_escalation_fraction = 0.05
+cascade_yolo_cost = yolo_cost(N_FRAMES * cascade_flagged_fraction)
+cascade_gpt4o_cost = gpt4o_cost(N_FRAMES * cascade_escalation_fraction)
+cascade_total = cascade_yolo_cost + cascade_gpt4o_cost
+
+# ── Plot ──────────────────────────────────────────────────────────────────
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+# Bar chart comparison
+architectures = ["Pure MLLM\n(GPT-4o only)", "Cascade\n(this project)"]
+costs = [pure_mllm_cost, cascade_total]
+colours = ["#ef4444", "#22c55e"]
+
+axes[0].bar(architectures, costs, color=colours, edgecolor="white", linewidth=1.5)
+axes[0].set_ylabel("Total Cost (USD)")
+axes[0].set_title(f"Cost for {N_FRAMES:,} frames")
+for i, (arch, cost) in enumerate(zip(architectures, costs)):
+    axes[0].text(i, cost + 5, f"${cost:.0f}", ha="center", fontweight="bold")
+
+# Cascade cost breakdown (stacked bar)
+cascade_components = ["YOLOv8\n(T4 GPU)", "GPT-4o\n(5% escalation)"]
+cascade_values = [cascade_yolo_cost, cascade_gpt4o_cost]
+bar_colours = ["#3b82f6", "#a855f7"]
+
+axes[1].bar(cascade_components, cascade_values, color=bar_colours, edgecolor="white", linewidth=1.5)
+axes[1].set_ylabel("Cost (USD)")
+axes[1].set_title("Cascade Cost Breakdown")
+for i, (comp, val) in enumerate(zip(cascade_components, cascade_values)):
+    axes[1].text(i, val + 0.5, f"${val:.2f}", ha="center", fontweight="bold")
+
+plt.tight_layout()
+plt.savefig("assets/cost_comparison.png", dpi=150, bbox_inches="tight")
+plt.show()
+
+reduction = (1 - cascade_total / pure_mllm_cost) * 100
+print(f"\nPure MLLM cost:  ${pure_mllm_cost:,.2f}")
+print(f"Cascade cost:    ${cascade_total:,.2f}")
+print(f"Cost reduction:  {reduction:.1f}%")
+```
+
+---
+
+## 3. Model Performance
+
+We train **two** YOLOv8n models and compare them on the Golden Test Set:
+
+| Model | Training Data | Purpose |
+|-------|--------------|---------|
+| `yolo_pseudo_v1` | Pseudo-labels from GPT-4o (~1,420 images) | Production model |
+| `yolo_gt_v1` | Human ground-truth labels (~1,420 images) | Baseline / upper bound |
+
+```{mermaid}
+%%| label: fig-model-comparison
+%%| fig-cap: "Model training comparison methodology"
+flowchart LR
+    subgraph PSEUDO["Pseudo-Label Track"]
+        PL["Pseudo-labels\n(GPT-4o annotated)"]
+        M1["yolo_pseudo_v1\nYOLOv8n"]
+    end
+
+    subgraph GT["Ground-Truth Track"]
+        GTL["Human labels\n(ground truth)"]
+        M2["yolo_gt_v1\nYOLOv8n"]
+    end
+
+    TEST["🧪 Golden Test Set\n360 images\nground-truth labels"]
+    EVAL["Evaluation\nPrecision / Recall / mAP50"]
+
+    PL --> M1
+    GTL --> M2
+    M1 --> EVAL
+    M2 --> EVAL
+    TEST --> EVAL
+
+    style PSEUDO fill:#dbeafe,stroke:#3b82f6
+    style GT fill:#dcfce7,stroke:#22c55e
+```
+
+### Expected Results (to be filled post-training)
+
+| Model | Precision | Recall | mAP50 | mAP50-95 |
+|-------|----------|--------|-------|----------|
+| `yolo_gt_v1` (human labels) | TBD | TBD | TBD | TBD |
+| `yolo_pseudo_v1` (GPT-4o labels) | TBD | TBD | TBD | TBD |
+| **Difference** | TBD | TBD | TBD | TBD |
+
+::: {.callout-note}
+## Hypothesis
+We expect `yolo_pseudo_v1` to achieve within **5 percentage points** of `yolo_gt_v1` on mAP50, demonstrating that GPT-4o pseudo-labels are a viable substitute for expensive manual annotation at this scale.
+:::
+
+---
+
+## 4. Full Cascade System Evaluation
+
+The final cascade evaluation measures the **combined system** on the 360-image Golden Test Set:
+
+```{mermaid}
+%%| label: fig-system-eval
+%%| fig-cap: "System-level evaluation flow"
+flowchart TD
+    TEST["360 Golden Test Images\n(with ground-truth labels)"]
+    CASCADE["Run full cascade\nLayer 1 → 2 → 3"]
+    METRICS["Compute Metrics"]
+    P["Precision"]
+    R["Recall"]
+    F1["F1 Score"]
+    LATENCY["Avg Latency\nper layer path"]
+    COST["Actual API\nCost incurred"]
+
+    TEST --> CASCADE --> METRICS
+    METRICS --> P
+    METRICS --> R
+    METRICS --> F1
+    METRICS --> LATENCY
+    METRICS --> COST
+```
+
+**Target SLAs:**
+
+| Metric | Target |
+|--------|--------|
+| Recall (defect detection) | ≥ 98% |
+| Precision | ≥ 85% |
+| Avg latency (weighted) | < 200 ms |
+| Cost per 100k frames | < $50 |

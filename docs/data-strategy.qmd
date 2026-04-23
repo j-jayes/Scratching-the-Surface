@@ -1,0 +1,195 @@
+---
+title: "Data Strategy"
+subtitle: "From 1,800 raw images to a pseudo-labelled training set"
+date: today
+---
+
+## Dataset: NEU Metal Surface Defects
+
+The foundation of this project is the **NEU Metal Surface Defects Database** — a widely used benchmark for surface defect detection in rolled steel manufacturing.
+
+| Property | Value |
+|----------|-------|
+| Source | Kaggle (`yiyang-feng/neu-metal-surface-defects-database`) |
+| Total images | 1,800 |
+| Classes | 6 (see below) |
+| Image size | 200×200 px (greyscale) |
+| Images per class | 300 (balanced) |
+
+### Defect Classes
+
+```{mermaid}
+%%| label: fig-classes
+%%| fig-cap: "NEU dataset defect class taxonomy"
+flowchart TD
+    ROOT["NEU Surface Defects\n1,800 images"]
+    C1["🔵 Crazing\n300 imgs"]
+    C2["🟢 Inclusion\n300 imgs"]
+    C3["🟡 Patches\n300 imgs"]
+    C4["🟠 Pitted Surface\n300 imgs"]
+    C5["🔴 Rolled-in Scale\n300 imgs"]
+    C6["🟣 Scratches\n300 imgs"]
+
+    ROOT --> C1
+    ROOT --> C2
+    ROOT --> C3
+    ROOT --> C4
+    ROOT --> C5
+    ROOT --> C6
+```
+
+---
+
+## The Three-Way Split
+
+We simulate a real-world factory scenario where only a tiny fraction of images are manually labelled.
+
+```{mermaid}
+%%| label: fig-split
+%%| fig-cap: "Dataset split strategy"
+flowchart LR
+    RAW["NEU Dataset\n1,800 images\n6 classes"]
+
+    subgraph SEED["🌱 Few-Shot Seed (1%)"]
+        S["18 images\n3 per class\nLabels kept"]
+    end
+
+    subgraph UNLABELLED["🔓 Unlabelled Pool (79%)"]
+        U["~1,420 images\nLabels stripped\nPseudo-labelled by GPT-4o"]
+    end
+
+    subgraph TEST["🧪 Golden Test Set (20%)"]
+        T["360 images\nGround-truth labels\nNever used in training"]
+    end
+
+    RAW --> SEED
+    RAW --> UNLABELLED
+    RAW --> TEST
+
+    S --> PROMPT["GPT-4o\nFew-Shot System Prompt"]
+    U --> GPT4O["GPT-4o\nBatch Annotation"]
+    PROMPT --> GPT4O
+    GPT4O --> PSEUDO["Pseudo-Labels\n(YOLO format)"]
+    PSEUDO --> YOLO["YOLOv8n\nTraining"]
+
+    style SEED fill:#dcfce7,stroke:#16a34a
+    style UNLABELLED fill:#fef9c3,stroke:#ca8a04
+    style TEST fill:#fee2e2,stroke:#dc2626
+```
+
+### Why Pseudo-Labels?
+
+This split simulates the core value proposition: **you can train a high-quality detection model with almost no manual labelling effort**, by using a powerful MLLM to annotate the unlabelled pool. The 360-image test set then measures how well this pseudo-labelled model compares to one trained on human annotations.
+
+---
+
+## GPT-4o Annotation Pipeline
+
+```{mermaid}
+%%| label: fig-annotation
+%%| fig-cap: "Offline pseudo-labelling pipeline"
+sequenceDiagram
+    participant SEED as Seed Images (18)
+    participant ANNOT as annotate.py
+    participant AZ as Azure OpenAI<br/>gpt-4o
+    participant STORE as ADLS<br/>pseudo_labels.json
+
+    ANNOT->>SEED: Load 3 examples per class
+    ANNOT->>ANNOT: Encode to base64
+    loop For each unlabelled image (~1,420)
+        ANNOT->>AZ: Few-shot prompt\n+ query image
+        AZ-->>ANNOT: DefectPrediction JSON\n{class, conf, reasoning}
+        ANNOT->>STORE: Append result
+    end
+    ANNOT->>STORE: Write final pseudo_labels.json
+```
+
+**Cost estimate for annotation run:**
+
+| Item | Value |
+|------|-------|
+| Images to annotate | ~1,420 |
+| Avg tokens per request (input) | ~2,500 (18 seed images + system prompt) |
+| Avg tokens per response | ~50 |
+| GPT-4o price (input / 1M tokens) | $2.50 |
+| GPT-4o price (output / 1M tokens) | $10.00 |
+| **Estimated total cost** | **~$9.00** |
+
+::: {.callout-tip}
+## One-Off Cost
+The annotation run is a **one-time offline cost**. Once `pseudo_labels.json` is generated and stored in ADLS, YOLOv8 can be retrained from it at negligible cost. This is the key economic argument for the cascade approach.
+:::
+
+---
+
+## Data Engineering on Azure
+
+```{mermaid}
+%%| label: fig-data-pipeline
+%%| fig-cap: "End-to-end data pipeline on Azure"
+flowchart TB
+    subgraph LOCAL["Local / GitHub Codespaces"]
+        DOWNLOAD["kaggle datasets download\nneu-metal-surface-defects"]
+        SPLIT["uv run python\nsrc/cascade_defect/data/split.py"]
+    end
+
+    subgraph ADLS["Azure Data Lake Gen2"]
+        direction LR
+        R["raw/NEU-DET/\n1800 images"]
+        SP["splits/\n├── seed/ (18)\n├── unlabelled/ (~1420)\n└── test/ (360)"]
+        PL["processed/\npseudo_labels.json"]
+    end
+
+    subgraph AML["Azure ML Workspace"]
+        DS["Registered Dataset\nneu-defects-v1"]
+        JOB["Training Job\nStandard_NC6s_v3"]
+    end
+
+    DOWNLOAD --> R
+    R --> SPLIT
+    SPLIT --> SP
+    SP --> PL
+    SP --> DS
+    DS --> JOB
+```
+
+### Commands
+
+```bash
+# 1. Download from Kaggle (requires kaggle.json in ~/.kaggle/)
+uv run kaggle datasets download yiyang-feng/neu-metal-surface-defects-database -p data/raw/
+
+# 2. Run the split
+uv run python src/cascade_defect/data/split.py \
+  --raw-dir data/raw/NEU-DET/images \
+  --output-dir data/splits
+
+# 3. Upload to ADLS
+az storage blob upload-batch \
+  --account-name cascadedefectadls \
+  --destination raw \
+  --source data/raw \
+  --auth-mode login
+
+az storage blob upload-batch \
+  --account-name cascadedefectadls \
+  --destination splits \
+  --source data/splits \
+  --auth-mode login
+```
+
+---
+
+## Label Schema (Pydantic)
+
+The structured output from GPT-4o is validated against this Pydantic model before being stored:
+
+```python
+class DefectPrediction(BaseModel):
+    defect_class: str       # One of 6 NEU classes, or "no_defect"
+    confidence: float       # 0.0 – 1.0
+    reasoning: str          # One-sentence justification
+    bounding_box_present: bool  # Did GPT-4o identify a localised region?
+```
+
+This schema is enforced at the API level using `client.beta.chat.completions.parse()`, which guarantees that malformed GPT-4o responses raise a `ValidationError` rather than silently corrupting the label database.

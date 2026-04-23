@@ -1,0 +1,49 @@
+project:
+  type: website
+  output-dir: _site
+
+website:
+  title: "Project Cascade Defect"
+  description: "A cost-effective ML cascade pipeline for real-time rolled-metal defect detection"
+  favicon: assets/favicon.ico
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: architecture.qmd
+        text: Architecture
+      - href: data-strategy.qmd
+        text: Data Strategy
+      - href: evaluation.qmd
+        text: Evaluation
+    right:
+      - icon: github
+        href: https://github.com/j-jayes/Scratching-the-Surface
+        aria-label: GitHub
+
+  sidebar: false
+
+  page-footer:
+    left: "Project Cascade Defect — ML Portfolio"
+    right:
+      - icon: github
+        href: https://github.com/j-jayes/Scratching-the-Surface
+
+format:
+  html:
+    theme:
+      light: flatly
+      dark: darkly
+    highlight-style: github
+    code-copy: true
+    code-overflow: wrap
+    toc: true
+    toc-depth: 3
+    number-sections: false
+    smooth-scroll: true
+    mermaid:
+      theme: default
+
+execute:
+  freeze: auto
+  cache: true
