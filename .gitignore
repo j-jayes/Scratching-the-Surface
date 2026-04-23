@@ -61,3 +61,8 @@ Thumbs.db
 
 # Docker
 docker/secrets/
+
+# Bicep compiled output
+infra/**/*.json
+!infra/**/*.parameters.json
+

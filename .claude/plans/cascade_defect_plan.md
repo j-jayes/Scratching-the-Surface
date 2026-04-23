@@ -30,13 +30,13 @@
 
 ## Phase 1 — Data Acquisition & Preparation
 
-- [ ] Download NEU Metal Surface Defects Database from Kaggle (`data/raw/`)
-- [ ] Write `src/cascade_defect/data/split.py` — stratified split logic
+- [ ] Download NEU Metal Surface Defects Database from Kaggle (`data/raw/`) — *code ready in `data/ingest.py`; needs valid Kaggle token*
+- [x] Write `src/cascade_defect/data/split.py` — stratified split logic
   - Few-Shot Seed   : 3 images × 6 classes  =  18 images  (1%)
   - Unlabeled Pool  : ~1,420 images          (79%)
   - Golden Test Set : 360 images             (20%)
-- [ ] Upload split data to **Azure Data Lake Storage Gen2** (`az storage` commands)
-- [ ] Register dataset in **Azure ML Workspace**
+- [ ] Upload split data to **Azure Blob Storage** — *code ready in `data/upload.py`*
+- ~~Register dataset in Azure ML Workspace~~ *(dropped — using ACA only)*
 
 ---
 
