@@ -20,22 +20,23 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      # ── Install uv ─────────────────────────────────────────────────────────
+      # ── Install uv (caches keyed off uv.lock) ──────────────────────────────
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v6
         with:
           version: "latest"
           enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
       # ── Set up Python via uv ────────────────────────────────────────────────
       - name: Set up Python 3.11
         run: uv python install 3.11
 
-      # ── Install project dependencies ────────────────────────────────────────
+      # ── Install project dependencies (frozen against uv.lock) ──────────────
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --frozen
 
       # ── Install Quarto CLI ──────────────────────────────────────────────────
       - name: Install Quarto

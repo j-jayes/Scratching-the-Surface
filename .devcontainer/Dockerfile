@@ -26,15 +26,12 @@ RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash
 # ── Project dependencies (installed at build time for fast container start) ──
 WORKDIR /app
 COPY pyproject.toml uv.lock* ./
-RUN uv sync --frozen --no-dev 2>/dev/null || uv sync --no-dev
+RUN uv sync --frozen 2>/dev/null || uv sync
 
 # ── Copy source ───────────────────────────────────────────────────────────────
 COPY . .
 
-# Install dev dependencies for the devcontainer
-RUN uv sync
-
-# Set up pre-commit
-RUN uv run pre-commit install --install-hooks 2>/dev/null || true
+# Ensure the non-root devcontainer user owns the workspace and venv.
+RUN chown -R vscode:vscode /app
 
 USER vscode

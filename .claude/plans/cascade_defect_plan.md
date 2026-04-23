@@ -18,9 +18,13 @@
 - [x] Create `.github/workflows/copilot-setup-steps.yml`
 - [x] Create `.pre-commit-config.yaml` (nbstripout + ruff)
 - [x] Create `pyproject.toml` with uv-compatible project metadata & dependencies
+- [x] Generate `uv.lock` (required by CI cache step)
 - [x] Create cookiecutter-style `src/cascade_defect/` package skeleton
 - [x] Create `docs/` Quarto website skeleton
 - [x] Update `README.md`
+- [x] Add `.env.example` and document secret-handling convention
+- [x] Fix `.devcontainer` (cross-platform mount, file ownership)
+- [x] Fix failing `copilot-setup-steps.yml` workflow
 
 ---
 

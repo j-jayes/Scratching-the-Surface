@@ -37,15 +37,13 @@
       }
     }
   },
-  "postCreateCommand": "uv sync && pre-commit install",
+  "postCreateCommand": "uv run pre-commit install",
   "remoteUser": "vscode",
-  "mounts": [
-    "source=${localEnv:HOME}/.azure,target=/home/vscode/.azure,type=bind,consistency=cached"
-  ],
-  "forwardPorts": [8000, 8001, 8888],
+  "forwardPorts": [8000, 8001, 8002, 8888],
   "portsAttributes": {
     "8000": { "label": "Layer 1 API (Autoencoder)" },
     "8001": { "label": "Layer 2 API (YOLOv8)" },
+    "8002": { "label": "Layer 3 API (GPT-4o)" },
     "8888": { "label": "Jupyter Lab" }
   }
 }
