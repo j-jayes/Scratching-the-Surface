@@ -1,0 +1,82 @@
+[project]
+name = "cascade-defect"
+version = "0.1.0"
+description = "Cascade architecture for real-time rolled-metal defect detection — Project Cascade Defect"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "j-jayes" }]
+
+dependencies = [
+    # Deep learning
+    "torch>=2.3.0",
+    "torchvision>=0.18.0",
+    "ultralytics>=8.2.0",      # YOLOv8
+    # Azure SDKs
+    "azure-storage-blob>=12.20.0",
+    "azure-identity>=1.17.0",
+    "azure-servicebus>=7.12.0",
+    "azure-ai-ml>=1.17.0",
+    "openai>=1.35.0",           # Azure OpenAI (GPT-4o)
+    # API / serving
+    "fastapi>=0.111.0",
+    "uvicorn[standard]>=0.30.0",
+    # Data & validation
+    "pydantic>=2.7.0",
+    "numpy>=1.26.0",
+    "pillow>=10.3.0",
+    "opencv-python-headless>=4.10.0",
+    # MLflow tracking
+    "mlflow>=2.14.0",
+    # Cost tracking
+    "tiktoken>=0.7.0",
+    # Utilities
+    "python-dotenv>=1.0.0",
+    "rich>=13.7.0",
+    "typer>=0.12.0",
+]
+
+[project.optional-dependencies]
+quarto = [
+    "jupyter>=1.0.0",
+    "matplotlib>=3.9.0",
+    "seaborn>=0.13.0",
+    "pandas>=2.2.0",
+    "plotly>=5.22.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.4.10",
+    "pytest>=8.2.0",
+    "pytest-cov>=5.0.0",
+    "pytest-asyncio>=0.23.0",
+    "httpx>=0.27.0",
+    "nbstripout>=0.7.1",
+    "pre-commit>=3.7.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cascade_defect"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["cascade_defect"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["src/cascade_defect"]
