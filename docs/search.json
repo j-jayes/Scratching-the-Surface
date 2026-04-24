@@ -63,6 +63,139 @@
     "text": "What this site walks through\n\nArchitecture — the three layers, the routing logic, the deployed Azure topology.\nData Strategy — splits, pseudo-labelling, the few-shot prompt design.\nEvaluation — the v1 numbers above, with the dual-accuracy framing made explicit.\n\nThe reflection is the point. Building the pipeline was the easy half; recognising that the demonstration dataset did not exercise the architecture’s strengths — and saying so plainly — is the half that actually matters in a portfolio."
   },
   {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Project Cascade Defect",
+    "section": "",
+    "text": "Project Cascade Defect is a proof-of-concept machine learning portfolio project that demonstrates how to optimise a defect-detection system for inference cost, latency, and accuracy simultaneously.\nInstead of running every factory camera frame through an expensive Multimodal Large Language Model (MLLM), we route frames through a three-layer Cascade Architecture — where most frames are handled cheaply and quickly, and only ambiguous edge-cases escalate to GPT-4o.\n\n\n\n\n\n\n\nflowchart LR\n    INPUT([🖼️ Raw Frame])\n\n    subgraph L1[\"Layer 1 — Gatekeeper\"]\n        AE[\"Conv Autoencoder\\nMSE Reconstruction\"]\n        T1{\"MSE &gt; τ?\"}\n    end\n\n    subgraph L2[\"Layer 2 — Specialist\"]\n        YOLO[\"YOLOv8n\\nInference\"]\n        T2{\"Conf ≥ 85%?\"}\n    end\n\n    subgraph L3[\"Layer 3 — Oracle\"]\n        GPT[\"GPT-4o\\nFew-Shot Prompt\"]\n    end\n\n    DISCARD([\"✅ No Defect\"])\n    LOG([\"📋 Log & Archive\"])\n\n    INPUT --&gt; AE\n    AE --&gt; T1\n    T1 -- No --&gt; DISCARD\n    T1 -- Yes --&gt; YOLO\n    YOLO --&gt; T2\n    T2 -- Yes --&gt; LOG\n    T2 -- No --&gt; GPT\n    GPT --&gt; LOG\n\n    style L1 fill:#dbeafe,stroke:#3b82f6\n    style L2 fill:#dcfce7,stroke:#22c55e\n    style L3 fill:#fef9c3,stroke:#eab308\n\n\n\n\nFigure 1: High-level cascade pipeline overview"
+  },
+  {
+    "objectID": "index.html#overview",
+    "href": "index.html#overview",
+    "title": "Project Cascade Defect",
+    "section": "",
+    "text": "Project Cascade Defect is a proof-of-concept machine learning portfolio project that demonstrates how to optimise a defect-detection system for inference cost, latency, and accuracy simultaneously.\nInstead of running every factory camera frame through an expensive Multimodal Large Language Model (MLLM), we route frames through a three-layer Cascade Architecture — where most frames are handled cheaply and quickly, and only ambiguous edge-cases escalate to GPT-4o.\n\n\n\n\n\n\n\nflowchart LR\n    INPUT([🖼️ Raw Frame])\n\n    subgraph L1[\"Layer 1 — Gatekeeper\"]\n        AE[\"Conv Autoencoder\\nMSE Reconstruction\"]\n        T1{\"MSE &gt; τ?\"}\n    end\n\n    subgraph L2[\"Layer 2 — Specialist\"]\n        YOLO[\"YOLOv8n\\nInference\"]\n        T2{\"Conf ≥ 85%?\"}\n    end\n\n    subgraph L3[\"Layer 3 — Oracle\"]\n        GPT[\"GPT-4o\\nFew-Shot Prompt\"]\n    end\n\n    DISCARD([\"✅ No Defect\"])\n    LOG([\"📋 Log & Archive\"])\n\n    INPUT --&gt; AE\n    AE --&gt; T1\n    T1 -- No --&gt; DISCARD\n    T1 -- Yes --&gt; YOLO\n    YOLO --&gt; T2\n    T2 -- Yes --&gt; LOG\n    T2 -- No --&gt; GPT\n    GPT --&gt; LOG\n\n    style L1 fill:#dbeafe,stroke:#3b82f6\n    style L2 fill:#dcfce7,stroke:#22c55e\n    style L3 fill:#fef9c3,stroke:#eab308\n\n\n\n\nFigure 1: High-level cascade pipeline overview"
+  },
+  {
+    "objectID": "index.html#why-a-cascade",
+    "href": "index.html#why-a-cascade",
+    "title": "Project Cascade Defect",
+    "section": "Why a Cascade?",
+    "text": "Why a Cascade?\n\n\n\nApproach\nCost per frame\nLatency\nAccuracy\n\n\n\n\nPure MLLM (GPT-4o for everything)\n~$0.002\n~3 s\n★★★★★\n\n\nPure Classical (YOLOv8 only)\n~$0.000001\n~15 ms\n★★★★☆\n\n\nCascade (this project)\n~$0.0000015\n~18 ms avg\n★★★★★\n\n\n\nThe cascade architecture captures the best of both worlds: classical computer vision handles the 95%+ of “easy” cases in milliseconds, while GPT-4o is reserved for the rare edge cases where certainty matters most."
+  },
+  {
+    "objectID": "index.html#key-technologies",
+    "href": "index.html#key-technologies",
+    "title": "Project Cascade Defect",
+    "section": "Key Technologies",
+    "text": "Key Technologies\n\nModel Training: Azure Machine Learning (AML) on Standard_NC6s_v3 compute\nInference: Azure Container Apps (ACA) with NVIDIA T4 GPU, scale-to-zero via KEDA\nEvent Bus: Azure Service Bus (decoupled queue between cascade layers)\nStorage: Azure Data Lake Storage Gen2\nMLLM: Azure OpenAI gpt-4o with Pydantic-enforced structured JSON output\nPackage Manager: uv (fast, reproducible Python dependency management)\nWebsite: Quarto (this site — Mermaid.js diagrams, executable Python cells)"
+  },
+  {
+    "objectID": "index.html#project-structure",
+    "href": "index.html#project-structure",
+    "title": "Project Cascade Defect",
+    "section": "Project Structure",
+    "text": "Project Structure\ncascade-defect/\n├── .agents/skills/          # Copilot domain-knowledge files\n├── .claude/plans/           # Project implementation plan\n├── .devcontainer/           # VS Code / Codespaces container config\n├── .pre-commit-config.yaml  # nbstripout + ruff hooks\n├── docs/                    # This Quarto website\n├── src/cascade_defect/      # Python source package\n│   ├── data/                # Dataset split utilities\n│   ├── layer1_autoencoder/  # Conv AE model, training, FastAPI app\n│   ├── layer2_yolo/         # YOLOv8 inference FastAPI app\n│   └── layer3_gpt4o/        # GPT-4o oracle FastAPI app\n├── tests/                   # pytest unit tests\n└── pyproject.toml           # uv-managed project config"
+  },
+  {
+    "objectID": "index.html#quick-links",
+    "href": "index.html#quick-links",
+    "title": "Project Cascade Defect",
+    "section": "Quick Links",
+    "text": "Quick Links\n\nArchitecture → — Detailed system design with Mermaid diagrams\nData Strategy → — Dataset splits and pseudo-labelling pipeline\nEvaluation → — Latency, cost, and accuracy benchmarks"
+  },
+  {
+    "objectID": "data-strategy.html",
+    "href": "data-strategy.html",
+    "title": "Data Strategy",
+    "section": "",
+    "text": "The foundation of this project is the NEU Metal Surface Defects Database — a widely used benchmark for surface defect detection in rolled steel manufacturing.\n\n\n\nProperty\nValue\n\n\n\n\nSource\nKaggle (yiyang-feng/neu-metal-surface-defects-database)\n\n\nTotal images\n1,800\n\n\nClasses\n6 (see below)\n\n\nImage size\n200×200 px (greyscale)\n\n\nImages per class\n300 (balanced)\n\n\n\n\n\n\n\n\n\n\n\n\nflowchart TD\n    ROOT[\"NEU Surface Defects\\n1,800 images\"]\n    C1[\"🔵 Crazing\\n300 imgs\"]\n    C2[\"🟢 Inclusion\\n300 imgs\"]\n    C3[\"🟡 Patches\\n300 imgs\"]\n    C4[\"🟠 Pitted Surface\\n300 imgs\"]\n    C5[\"🔴 Rolled-in Scale\\n300 imgs\"]\n    C6[\"🟣 Scratches\\n300 imgs\"]\n\n    ROOT --&gt; C1\n    ROOT --&gt; C2\n    ROOT --&gt; C3\n    ROOT --&gt; C4\n    ROOT --&gt; C5\n    ROOT --&gt; C6\n\n\n\n\nFigure 1: NEU dataset defect class taxonomy"
+  },
+  {
+    "objectID": "data-strategy.html#dataset-neu-metal-surface-defects",
+    "href": "data-strategy.html#dataset-neu-metal-surface-defects",
+    "title": "Data Strategy",
+    "section": "",
+    "text": "The foundation of this project is the NEU Metal Surface Defects Database — a widely used benchmark for surface defect detection in rolled steel manufacturing.\n\n\n\nProperty\nValue\n\n\n\n\nSource\nKaggle (yiyang-feng/neu-metal-surface-defects-database)\n\n\nTotal images\n1,800\n\n\nClasses\n6 (see below)\n\n\nImage size\n200×200 px (greyscale)\n\n\nImages per class\n300 (balanced)\n\n\n\n\n\n\n\n\n\n\n\n\nflowchart TD\n    ROOT[\"NEU Surface Defects\\n1,800 images\"]\n    C1[\"🔵 Crazing\\n300 imgs\"]\n    C2[\"🟢 Inclusion\\n300 imgs\"]\n    C3[\"🟡 Patches\\n300 imgs\"]\n    C4[\"🟠 Pitted Surface\\n300 imgs\"]\n    C5[\"🔴 Rolled-in Scale\\n300 imgs\"]\n    C6[\"🟣 Scratches\\n300 imgs\"]\n\n    ROOT --&gt; C1\n    ROOT --&gt; C2\n    ROOT --&gt; C3\n    ROOT --&gt; C4\n    ROOT --&gt; C5\n    ROOT --&gt; C6\n\n\n\n\nFigure 1: NEU dataset defect class taxonomy"
+  },
+  {
+    "objectID": "data-strategy.html#the-three-way-split",
+    "href": "data-strategy.html#the-three-way-split",
+    "title": "Data Strategy",
+    "section": "The Three-Way Split",
+    "text": "The Three-Way Split\nWe simulate a real-world factory scenario where only a tiny fraction of images are manually labelled.\n\n%%| label: fig-split\n%%| fig-cap: \"Dataset split strategy\"\nflowchart LR\n    RAW[\"NEU Dataset\\n1,800 images\\n6 classes\"]\n\n    subgraph SEED[\"🌱 Few-Shot Seed (1%)\"]\n        S[\"18 images\\n3 per class\\nLabels kept\"]\n    end\n\n    subgraph UNLABELLED[\"🔓 Unlabelled Pool (79%)\"]\n        U[\"~1,420 images\\nLabels stripped\\nPseudo-labelled by GPT-4o\"]\n    end\n\n    subgraph TEST[\"🧪 Golden Test Set (20%)\"]\n        T[\"360 images\\nGround-truth labels\\nNever used in training\"]\n    end\n\n    RAW --&gt; SEED\n    RAW --&gt; UNLABELLED\n    RAW --&gt; TEST\n\n    S --&gt; PROMPT[\"GPT-4o\\nFew-Shot System Prompt\"]\n    U --&gt; GPT4O[\"GPT-4o\\nBatch Annotation\"]\n    PROMPT --&gt; GPT4O\n    GPT4O --&gt; PSEUDO[\"Pseudo-Labels\\n(YOLO format)\"]\n    PSEUDO --&gt; YOLO[\"YOLOv8n\\nTraining\"]\n\n    style SEED fill:#dcfce7,stroke:#16a34a\n    style UNLABELLED fill:#fef9c3,stroke:#ca8a04\n    style TEST fill:#fee2e2,stroke:#dc2626\n\n\nWhy Pseudo-Labels?\nThis split simulates the core value proposition: you can train a high-quality detection model with almost no manual labelling effort, by using a powerful MLLM to annotate the unlabelled pool. The 360-image test set then measures how well this pseudo-labelled model compares to one trained on human annotations."
+  },
+  {
+    "objectID": "data-strategy.html#gpt-4o-annotation-pipeline",
+    "href": "data-strategy.html#gpt-4o-annotation-pipeline",
+    "title": "Data Strategy",
+    "section": "GPT-4o Annotation Pipeline",
+    "text": "GPT-4o Annotation Pipeline\n\n\n\n\n\n\n\nsequenceDiagram\n    participant SEED as Seed Images (18)\n    participant ANNOT as annotate.py\n    participant AZ as Azure OpenAI&lt;br/&gt;gpt-4o\n    participant STORE as ADLS&lt;br/&gt;pseudo_labels.json\n\n    ANNOT-&gt;&gt;SEED: Load 3 examples per class\n    ANNOT-&gt;&gt;ANNOT: Encode to base64\n    loop For each unlabelled image (~1,420)\n        ANNOT-&gt;&gt;AZ: Few-shot prompt\\n+ query image\n        AZ--&gt;&gt;ANNOT: DefectPrediction JSON\\n{class, conf, reasoning}\n        ANNOT-&gt;&gt;STORE: Append result\n    end\n    ANNOT-&gt;&gt;STORE: Write final pseudo_labels.json\n\n\n\n\nFigure 2: Offline pseudo-labelling pipeline\n\n\n\n\n\n\nCost estimate for annotation run:\n\n\n\n\n\n\n\nItem\nValue\n\n\n\n\nImages to annotate\n~1,420\n\n\nAvg tokens per request (input)\n~2,500 (18 seed images + system prompt)\n\n\nAvg tokens per response\n~50\n\n\nGPT-4o price (input / 1M tokens)\n$2.50\n\n\nGPT-4o price (output / 1M tokens)\n$10.00\n\n\nEstimated total cost\n~$9.00\n\n\n\n\n\n\n\n\n\nTipOne-Off Cost\n\n\n\nThe annotation run is a one-time offline cost. Once pseudo_labels.json is generated and stored in ADLS, YOLOv8 can be retrained from it at negligible cost. This is the key economic argument for the cascade approach."
+  },
+  {
+    "objectID": "data-strategy.html#data-engineering-on-azure",
+    "href": "data-strategy.html#data-engineering-on-azure",
+    "title": "Data Strategy",
+    "section": "Data Engineering on Azure",
+    "text": "Data Engineering on Azure\n\n\n\n\n\n\n\nflowchart TB\n    subgraph LOCAL[\"Local / GitHub Codespaces\"]\n        DOWNLOAD[\"kaggle datasets download\\nneu-metal-surface-defects\"]\n        SPLIT[\"uv run python\\nsrc/cascade_defect/data/split.py\"]\n    end\n\n    subgraph ADLS[\"Azure Data Lake Gen2\"]\n        direction LR\n        R[\"raw/NEU-DET/\\n1800 images\"]\n        SP[\"splits/\\n├── seed/ (18)\\n├── unlabelled/ (~1420)\\n└── test/ (360)\"]\n        PL[\"processed/\\npseudo_labels.json\"]\n    end\n\n    subgraph AML[\"Azure ML Workspace\"]\n        DS[\"Registered Dataset\\nneu-defects-v1\"]\n        JOB[\"Training Job\\nStandard_NC6s_v3\"]\n    end\n\n    DOWNLOAD --&gt; R\n    R --&gt; SPLIT\n    SPLIT --&gt; SP\n    SP --&gt; PL\n    SP --&gt; DS\n    DS --&gt; JOB\n\n\n\n\nFigure 3: End-to-end data pipeline on Azure\n\n\n\n\n\n\n\nCommands\n# 1. Download from Kaggle (requires kaggle.json in ~/.kaggle/)\nuv run kaggle datasets download yiyang-feng/neu-metal-surface-defects-database -p data/raw/\n\n# 2. Run the split\nuv run python src/cascade_defect/data/split.py \\\n  --raw-dir data/raw/NEU-DET/images \\\n  --output-dir data/splits\n\n# 3. Upload to ADLS\naz storage blob upload-batch \\\n  --account-name cascadedefectadls \\\n  --destination raw \\\n  --source data/raw \\\n  --auth-mode login\n\naz storage blob upload-batch \\\n  --account-name cascadedefectadls \\\n  --destination splits \\\n  --source data/splits \\\n  --auth-mode login"
+  },
+  {
+    "objectID": "data-strategy.html#label-schema-pydantic",
+    "href": "data-strategy.html#label-schema-pydantic",
+    "title": "Data Strategy",
+    "section": "Label Schema (Pydantic)",
+    "text": "Label Schema (Pydantic)\nThe structured output from GPT-4o is validated against this Pydantic model before being stored:\nclass DefectPrediction(BaseModel):\n    defect_class: str       # One of 6 NEU classes, or \"no_defect\"\n    confidence: float       # 0.0 – 1.0\n    reasoning: str          # One-sentence justification\n    bounding_box_present: bool  # Did GPT-4o identify a localised region?\nThis schema is enforced at the API level using client.beta.chat.completions.parse(), which guarantees that malformed GPT-4o responses raise a ValidationError rather than silently corrupting the label database."
+  },
+  {
+    "objectID": "architecture.html",
+    "href": "architecture.html",
+    "title": "System Architecture",
+    "section": "",
+    "text": "The architecture is guided by three constraints:\n\nCost: Minimise GPT-4o API tokens consumed per production frame.\nLatency: Ensure the common case (no defect) completes in &lt; 20 ms.\nAccuracy: Never miss a true defect — optimise for recall over precision at each gate."
+  },
+  {
+    "objectID": "architecture.html#design-philosophy",
+    "href": "architecture.html#design-philosophy",
+    "title": "System Architecture",
+    "section": "",
+    "text": "The architecture is guided by three constraints:\n\nCost: Minimise GPT-4o API tokens consumed per production frame.\nLatency: Ensure the common case (no defect) completes in &lt; 20 ms.\nAccuracy: Never miss a true defect — optimise for recall over precision at each gate."
+  },
+  {
+    "objectID": "architecture.html#layer-1-the-gatekeeper-convolutional-autoencoder",
+    "href": "architecture.html#layer-1-the-gatekeeper-convolutional-autoencoder",
+    "title": "System Architecture",
+    "section": "Layer 1 — The Gatekeeper (Convolutional Autoencoder)",
+    "text": "Layer 1 — The Gatekeeper (Convolutional Autoencoder)\nThe autoencoder is trained only on defect-free images. When shown a defective image, the network reconstructs it poorly, producing a high Mean Squared Error (MSE). This asymmetry is the entire trick.\n\n\n\n\n\n\n\nflowchart LR\n    IMG[Input Image\\n256×256×3]\n    ENC[\"Encoder\\n4× Conv2d\\n↓ stride-2\"]\n    LAT[\"Latent Space\\n256×16×16\"]\n    DEC[\"Decoder\\n4× ConvTranspose2d\\n↑ stride-2\"]\n    RECON[\"Reconstructed\\nImage 256×256×3\"]\n    MSE[\"MSE\\nReconstruction\\nError\"]\n    GATE{\"MSE &gt; τ?\"}\n    DISCARD([\"Discard\\n(no defect)\"])\n    PASS([\"Pass to\\nLayer 2\"])\n\n    IMG --&gt; ENC --&gt; LAT --&gt; DEC --&gt; RECON\n    IMG --&gt; MSE\n    RECON --&gt; MSE\n    MSE --&gt; GATE\n    GATE -- No --&gt; DISCARD\n    GATE -- Yes --&gt; PASS\n\n    style DISCARD fill:#dcfce7\n    style PASS fill:#fef9c3\n\n\n\n\nFigure 1: Layer 1: Autoencoder reconstruction pipeline\n\n\n\n\n\n\nThreshold Selection: The MSE threshold τ is calibrated on the validation set to achieve 99% recall — we accept more false positives at this stage to ensure no defect escapes undetected."
+  },
+  {
+    "objectID": "architecture.html#layer-2-the-specialist-yolov8n",
+    "href": "architecture.html#layer-2-the-specialist-yolov8n",
+    "title": "System Architecture",
+    "section": "Layer 2 — The Specialist (YOLOv8n)",
+    "text": "Layer 2 — The Specialist (YOLOv8n)\nYOLOv8n is a lightweight single-stage object detector. It classifies and localises the defect in a single forward pass at ~15 ms on a T4 GPU.\n\n\n\n\n\n\n\nflowchart LR\n    IN[Flagged Frame\\nfrom Layer 1]\n    YOLO[\"YOLOv8n\\nBackbone + Head\"]\n    BOXES[\"Predicted Bounding\\nBoxes + Classes\"]\n    BEST[\"Best Detection\\n(highest conf)\"]\n    GATE{\"conf ≥ 0.85?\"}\n    LOG([\"📋 Log Defect\\nclass + bbox\"])\n    ESC([\"Escalate to\\nLayer 3\"])\n\n    IN --&gt; YOLO --&gt; BOXES --&gt; BEST --&gt; GATE\n    GATE -- Yes --&gt; LOG\n    GATE -- No --&gt; ESC\n\n    style LOG fill:#dcfce7\n    style ESC fill:#fee2e2\n\n\n\n\nFigure 2: Layer 2: YOLOv8 inference and confidence routing\n\n\n\n\n\n\nTraining Data: YOLOv8 is trained purely on pseudo-labels generated by GPT-4o in the offline annotation phase. See Data Strategy for details."
+  },
+  {
+    "objectID": "architecture.html#layer-3-the-oracle-gpt-4o",
+    "href": "architecture.html#layer-3-the-oracle-gpt-4o",
+    "title": "System Architecture",
+    "section": "Layer 3 — The Oracle (GPT-4o)",
+    "text": "Layer 3 — The Oracle (GPT-4o)\nOnly frames where YOLOv8 is uncertain (confidence &lt; 85%) reach this layer. GPT-4o acts as a high-accuracy fallback and simultaneously generates annotations that are fed back into the YOLOv8 retraining queue.\n\n\n\n\n\n\n\nsequenceDiagram\n    participant L2 as Layer 2&lt;br/&gt;(YOLOv8)\n    participant L3 as Layer 3&lt;br/&gt;(GPT-4o)\n    participant AZ as Azure OpenAI&lt;br/&gt;gpt-4o\n    participant DB as ADLS Logs\n\n    L2-&gt;&gt;L3: POST /predict (image, low-conf)\n    L3-&gt;&gt;L3: Build few-shot prompt\\n(18 seed images)\n    L3-&gt;&gt;AZ: Structured output request\\n(Pydantic schema)\n    AZ--&gt;&gt;L3: DefectPrediction JSON\\n{class, confidence, reasoning}\n    L3-&gt;&gt;DB: Log prediction + add to retrain queue\n    L3--&gt;&gt;L2: Return result\n\n\n\n\nFigure 3: Layer 3: GPT-4o few-shot classification\n\n\n\n\n\n\nJSON Schema Enforcement: We use client.beta.chat.completions.parse() with a Pydantic DefectPrediction model to guarantee valid JSON output — GPT-4o never returns free-form text."
+  },
+  {
+    "objectID": "architecture.html#azure-infrastructure",
+    "href": "architecture.html#azure-infrastructure",
+    "title": "System Architecture",
+    "section": "Azure Infrastructure",
+    "text": "Azure Infrastructure\n\n\n\n\n\n\n\nflowchart TB\n    subgraph INGEST[\"Data Ingestion\"]\n        CAM[\"🎥 Factory Camera\\nRTSP Stream\"]\n        UPLOADER[\"Frame Uploader\\nPython script\"]\n    end\n\n    subgraph ADLS[\"Azure Data Lake Gen2\\n(cascade-defect-adls)\"]\n        RAW[\"raw/\"]\n        PROCESSED[\"processed/\\npseudo_labels.json\"]\n        LOGS[\"logs/anomalies/\"]\n    end\n\n    subgraph SB[\"Azure Service Bus\\n(cascade-defect-sb)\"]\n        QUEUE[\"defect-queue\"]\n    end\n\n    subgraph ACA[\"Azure Container Apps — West Europe\\nConsumption-GPU-NC8as-T4\"]\n        L1APP[\"layer1-autoencoder\\nmin=0 max=5\"]\n        L2APP[\"layer2-yolo\\nmin=0 max=10\\nKEDA: queue length\"]\n    end\n\n    subgraph OPENAI[\"Azure OpenAI\\n(swedencentral)\"]\n        GPT4O[\"gpt-4o\\ndeployment\"]\n    end\n\n    subgraph AML[\"Azure ML Workspace\\n(offline training only)\"]\n        CLUSTER[\"Standard_NC6s_v3\\ntransient compute\"]\n        MLFLOW[\"MLflow Tracking\"]\n        REGISTRY[\"Model Registry\\nautoencoder_v1\\nyolo_pseudo_v1\"]\n    end\n\n    subgraph ACR[\"Azure Container Registry\\n(cascadedefectacr)\"]\n        IMG1[\"layer1-autoencoder:latest\"]\n        IMG2[\"layer2-yolo:latest\"]\n    end\n\n    CAM --&gt; UPLOADER --&gt; RAW\n    RAW --&gt; L1APP\n    L1APP -- \"MSE &gt; τ\\nenqueue image_uri\" --&gt; QUEUE\n    QUEUE -- \"KEDA trigger\\nscale-up\" --&gt; L2APP\n    L2APP -- \"conf &lt; 0.85\" --&gt; GPT4O\n    GPT4O --&gt; LOGS\n    L2APP -- \"conf ≥ 0.85\" --&gt; LOGS\n    AML --&gt; REGISTRY\n    REGISTRY --&gt; ACR\n    ACR --&gt; L1APP\n    ACR --&gt; L2APP\n\n    style ACA fill:#dbeafe,stroke:#3b82f6\n    style SB fill:#fef9c3,stroke:#eab308\n    style OPENAI fill:#f3e8ff,stroke:#a855f7\n    style AML fill:#f0fdf4,stroke:#16a34a\n\n\n\n\nFigure 4: Full Azure infrastructure diagram"
+  },
+  {
+    "objectID": "architecture.html#deployment-checklist",
+    "href": "architecture.html#deployment-checklist",
+    "title": "System Architecture",
+    "section": "Deployment Checklist",
+    "text": "Deployment Checklist\n\n\n\nStep\nCommand / Action\n\n\n\n\n1. Request T4 GPU quota\nAzure Portal → Support → “Managed Environment Consumption T4 Gpus”\n\n\n2. Create resource group\naz group create --name cascade-defect-rg --location westeurope\n\n\n3. Create ACR\naz acr create --name cascadedefectacr --sku Basic\n\n\n4. Build & push images\naz acr build --registry cascadedefectacr ...\n\n\n5. Create ACA environment\nSee azure_container_apps.md\n\n\n6. Deploy container apps\naz containerapp create ...\n\n\n7. Configure KEDA\naz containerapp update --scale-rule-type azure-servicebus ...\n\n\n\n\n\n\n\n\n\nWarningCold-Start Penalty\n\n\n\nScaling from zero replicas with a T4 GPU attached takes 30–90 seconds (image pull + GPU attachment). This is not part of the inference latency and must be measured and documented separately. In production, keep Layer 2 at --min-replicas 1 during active factory shifts."
+  },
+  {
     "objectID": "evaluation.html",
     "href": "evaluation.html",
     "title": "Evaluation",
@@ -126,136 +259,38 @@
     "text": "7. Reproducing\n# 1. Pull real NEU from public HF mirror (no auth required)\nuv run python -c \"from cascade_defect.data.ingest import download_neu_from_hf; download_neu_from_hf()\"\nuv run python -m cascade_defect.data.split\n\n# 2. Retrain Layer 1 AE on a single 'normal' class\nuv run python -m cascade_defect.layer1_autoencoder.train --normal-class rolled-in_scale --epochs 8\n\n# 3. Stratified 60-image cascade run (~3 min, ~$0.03)\nuv run python -m cascade_defect.eval.run_cascade --limit 60\n\n# 4. Pure-Oracle baseline on the same 60 images\nuv run python -m cascade_defect.eval.run_oracle_only --limit 60\n\n# 5. Roll up reports/metrics.json + render this page\nuv run python -m cascade_defect.eval.metrics\nquarto render docs/"
   },
   {
-    "objectID": "architecture.html",
-    "href": "architecture.html",
-    "title": "System Architecture",
+    "objectID": "inferences.html",
+    "href": "inferences.html",
+    "title": "Inference walkthroughs",
     "section": "",
-    "text": "The architecture is guided by three constraints:\n\nCost: Minimise GPT-4o API tokens consumed per production frame.\nLatency: Ensure the common case (no defect) completes in &lt; 20 ms.\nAccuracy: Never miss a true defect — optimise for recall over precision at each gate."
+    "text": "These are real responses from the live router on three hand-picked test frames. For each example we show, side-by-side:\nThe textual block under each panel reproduces the exact router trace from reports/eval_cascade.jsonl plus the GPT-4.1-mini reasoning string when L3 was invoked."
   },
   {
-    "objectID": "architecture.html#design-philosophy",
-    "href": "architecture.html#design-philosophy",
-    "title": "System Architecture",
-    "section": "",
-    "text": "The architecture is guided by three constraints:\n\nCost: Minimise GPT-4o API tokens consumed per production frame.\nLatency: Ensure the common case (no defect) completes in &lt; 20 ms.\nAccuracy: Never miss a true defect — optimise for recall over precision at each gate."
+    "objectID": "inferences.html#layer-1-short-circuit-the-cheap-path",
+    "href": "inferences.html#layer-1-short-circuit-the-cheap-path",
+    "title": "Inference walkthroughs",
+    "section": "1. Layer-1 short-circuit — the cheap path",
+    "text": "1. Layer-1 short-circuit — the cheap path\n\n\n\n\n\n\n\n\nInput — inclusion/img_001.jpg\n\n\n\n\n\n\n\nL1 reconstruction\n\n\n\n\n\n\n\nL1 diff heatmap\n\n\n\n\n\n\n\nL2 (not invoked) — COCO-YOLO sanity check\n\n\n\n\n\n\nFigure 1: Layer-1 reconstruction is near-perfect. MSE is well below threshold, so the frame exits in 65 ms without ever touching L2 or L3.\n\n\n\n\nRouter trace (true label: inclusion, decision: no_defect, stopped at L1, total 65 ms)\n\nL1 → no_defect · MSE 0.000931 · threshold 0.0067\n\nHonest reading. This is a defective frame the cascade incorrectly dropped. NEU’s inclusion class happens to look “normal-ish” against the rolled-in_scale proxy the AE was trained on. The cascade plumbing did its job — speed-wise it’s exactly right — but the underlying AE has no genuine “normal” class to compare against. This single failure mode is what motivates the Phase J swap to VisA."
   },
   {
-    "objectID": "architecture.html#layer-1-the-gatekeeper-convolutional-autoencoder",
-    "href": "architecture.html#layer-1-the-gatekeeper-convolutional-autoencoder",
-    "title": "System Architecture",
-    "section": "Layer 1 — The Gatekeeper (Convolutional Autoencoder)",
-    "text": "Layer 1 — The Gatekeeper (Convolutional Autoencoder)\nThe autoencoder is trained only on defect-free images. When shown a defective image, the network reconstructs it poorly, producing a high Mean Squared Error (MSE). This asymmetry is the entire trick.\n\n\n\n\n\n\n\nflowchart LR\n    IMG[Input Image\\n256×256×3]\n    ENC[\"Encoder\\n4× Conv2d\\n↓ stride-2\"]\n    LAT[\"Latent Space\\n256×16×16\"]\n    DEC[\"Decoder\\n4× ConvTranspose2d\\n↑ stride-2\"]\n    RECON[\"Reconstructed\\nImage 256×256×3\"]\n    MSE[\"MSE\\nReconstruction\\nError\"]\n    GATE{\"MSE &gt; τ?\"}\n    DISCARD([\"Discard\\n(no defect)\"])\n    PASS([\"Pass to\\nLayer 2\"])\n\n    IMG --&gt; ENC --&gt; LAT --&gt; DEC --&gt; RECON\n    IMG --&gt; MSE\n    RECON --&gt; MSE\n    MSE --&gt; GATE\n    GATE -- No --&gt; DISCARD\n    GATE -- Yes --&gt; PASS\n\n    style DISCARD fill:#dcfce7\n    style PASS fill:#fef9c3\n\n\n\n\nFigure 1: Layer 1: Autoencoder reconstruction pipeline\n\n\n\n\n\n\nThreshold Selection: The MSE threshold τ is calibrated on the validation set to achieve 99% recall — we accept more false positives at this stage to ensure no defect escapes undetected."
+    "objectID": "inferences.html#full-cascade-l1-l2-l3-the-oracle-nails-it",
+    "href": "inferences.html#full-cascade-l1-l2-l3-the-oracle-nails-it",
+    "title": "Inference walkthroughs",
+    "section": "2. Full cascade L1 → L2 → L3 — the Oracle nails it",
+    "text": "2. Full cascade L1 → L2 → L3 — the Oracle nails it\n\n\n\n\n\n\n\n\nInput — crazing/img_005.jpg\n\n\n\n\n\n\n\nL1 reconstruction\n\n\n\n\n\n\n\nL1 diff heatmap (clearly noisy across the network of cracks)\n\n\n\n\n\n\n\nL2 — top-3 YOLO boxes (cat, person, cat); not defect-trained\n\n\n\n\n\n\nFigure 2: The AE flags the frame, the COCO-YOLO returns nonsense at very low confidence, the router escalates to the Oracle, GPT-4.1-mini gets it right.\n\n\n\n\nRouter trace (true label: crazing, decision: defect, stopped at L3, total 55,431 ms)\n\nL1 → defect_candidate · MSE 0.00877 (&gt; τ=0.0067) · escalate\nL2 → defect_detected class=cat confidence=0.012 (COCO-YOLO is not defect-trained — confidence below escalate-threshold 0.7 → escalate)\nL3 → defect class=crazing confidence=0.95 · 2,574 tokens · \"The image shows fine network-like cracks typical of crazing defects.\"\n\nWhat this shows. Layer 2’s failure mode is the actual reason the Oracle exists. Until YOLO is fine-tuned on real defect bounding boxes (Phase F.1, queued for Phase J), every L1-positive frame escalates to L3. That is expensive and slow — but it is correct, and the router design means the moment YOLO gets retrained, cost and latency drop without any other code change."
   },
   {
-    "objectID": "architecture.html#layer-2-the-specialist-yolov8n",
-    "href": "architecture.html#layer-2-the-specialist-yolov8n",
-    "title": "System Architecture",
-    "section": "Layer 2 — The Specialist (YOLOv8n)",
-    "text": "Layer 2 — The Specialist (YOLOv8n)\nYOLOv8n is a lightweight single-stage object detector. It classifies and localises the defect in a single forward pass at ~15 ms on a T4 GPU.\n\n\n\n\n\n\n\nflowchart LR\n    IN[Flagged Frame\\nfrom Layer 1]\n    YOLO[\"YOLOv8n\\nBackbone + Head\"]\n    BOXES[\"Predicted Bounding\\nBoxes + Classes\"]\n    BEST[\"Best Detection\\n(highest conf)\"]\n    GATE{\"conf ≥ 0.85?\"}\n    LOG([\"📋 Log Defect\\nclass + bbox\"])\n    ESC([\"Escalate to\\nLayer 3\"])\n\n    IN --&gt; YOLO --&gt; BOXES --&gt; BEST --&gt; GATE\n    GATE -- Yes --&gt; LOG\n    GATE -- No --&gt; ESC\n\n    style LOG fill:#dcfce7\n    style ESC fill:#fee2e2\n\n\n\n\nFigure 2: Layer 2: YOLOv8 inference and confidence routing\n\n\n\n\n\n\nTraining Data: YOLOv8 is trained purely on pseudo-labels generated by GPT-4o in the offline annotation phase. See Data Strategy for details."
+    "objectID": "inferences.html#same-path-different-defect-class",
+    "href": "inferences.html#same-path-different-defect-class",
+    "title": "Inference walkthroughs",
+    "section": "3. Same path, different defect class",
+    "text": "3. Same path, different defect class\n\n\n\n\n\n\n\n\nInput — patches/img_000.jpg\n\n\n\n\n\n\n\nL1 reconstruction (struggles on the dark patches)\n\n\n\n\n\n\n\nL1 diff heatmap (hot wherever the patches are)\n\n\n\n\n\n\n\nL2 — top-3 boxes still off-domain\n\n\n\n\n\n\nFigure 3: Same routing path, different defect class — proof the Oracle generalises across the six NEU categories from a single 6-shot prompt.\n\n\n\n\nRouter trace (true label: patches, decision: defect, stopped at L3)\n\nL1 → defect_candidate · MSE 0.0263 (4× threshold) · escalate\nL2 → defect_detected class=cat confidence=0.103 (still off-domain) · escalate\nL3 → defect class=patches confidence=0.95 · 2,577 tokens · \"The image shows irregular dark areas with diffuse edges similar to the reference examples of patches.\"\n\nWhat this shows. The router is class-agnostic. All six defect classes flow through the same logic; only the L3 system prompt encodes domain vocabulary. Adding a seventh class for v2 would mean adding one few-shot exemplar and one Pydantic enum value — no router or container changes."
   },
   {
-    "objectID": "architecture.html#layer-3-the-oracle-gpt-4o",
-    "href": "architecture.html#layer-3-the-oracle-gpt-4o",
-    "title": "System Architecture",
-    "section": "Layer 3 — The Oracle (GPT-4o)",
-    "text": "Layer 3 — The Oracle (GPT-4o)\nOnly frames where YOLOv8 is uncertain (confidence &lt; 85%) reach this layer. GPT-4o acts as a high-accuracy fallback and simultaneously generates annotations that are fed back into the YOLOv8 retraining queue.\n\n\n\n\n\n\n\nsequenceDiagram\n    participant L2 as Layer 2&lt;br/&gt;(YOLOv8)\n    participant L3 as Layer 3&lt;br/&gt;(GPT-4o)\n    participant AZ as Azure OpenAI&lt;br/&gt;gpt-4o\n    participant DB as ADLS Logs\n\n    L2-&gt;&gt;L3: POST /predict (image, low-conf)\n    L3-&gt;&gt;L3: Build few-shot prompt\\n(18 seed images)\n    L3-&gt;&gt;AZ: Structured output request\\n(Pydantic schema)\n    AZ--&gt;&gt;L3: DefectPrediction JSON\\n{class, confidence, reasoning}\n    L3-&gt;&gt;DB: Log prediction + add to retrain queue\n    L3--&gt;&gt;L2: Return result\n\n\n\n\nFigure 3: Layer 3: GPT-4o few-shot classification\n\n\n\n\n\n\nJSON Schema Enforcement: We use client.beta.chat.completions.parse() with a Pydantic DefectPrediction model to guarantee valid JSON output — GPT-4o never returns free-form text."
-  },
-  {
-    "objectID": "architecture.html#azure-infrastructure",
-    "href": "architecture.html#azure-infrastructure",
-    "title": "System Architecture",
-    "section": "Azure Infrastructure",
-    "text": "Azure Infrastructure\n\n\n\n\n\n\n\nflowchart TB\n    subgraph INGEST[\"Data Ingestion\"]\n        CAM[\"🎥 Factory Camera\\nRTSP Stream\"]\n        UPLOADER[\"Frame Uploader\\nPython script\"]\n    end\n\n    subgraph ADLS[\"Azure Data Lake Gen2\\n(cascade-defect-adls)\"]\n        RAW[\"raw/\"]\n        PROCESSED[\"processed/\\npseudo_labels.json\"]\n        LOGS[\"logs/anomalies/\"]\n    end\n\n    subgraph SB[\"Azure Service Bus\\n(cascade-defect-sb)\"]\n        QUEUE[\"defect-queue\"]\n    end\n\n    subgraph ACA[\"Azure Container Apps — West Europe\\nConsumption-GPU-NC8as-T4\"]\n        L1APP[\"layer1-autoencoder\\nmin=0 max=5\"]\n        L2APP[\"layer2-yolo\\nmin=0 max=10\\nKEDA: queue length\"]\n    end\n\n    subgraph OPENAI[\"Azure OpenAI\\n(swedencentral)\"]\n        GPT4O[\"gpt-4o\\ndeployment\"]\n    end\n\n    subgraph AML[\"Azure ML Workspace\\n(offline training only)\"]\n        CLUSTER[\"Standard_NC6s_v3\\ntransient compute\"]\n        MLFLOW[\"MLflow Tracking\"]\n        REGISTRY[\"Model Registry\\nautoencoder_v1\\nyolo_pseudo_v1\"]\n    end\n\n    subgraph ACR[\"Azure Container Registry\\n(cascadedefectacr)\"]\n        IMG1[\"layer1-autoencoder:latest\"]\n        IMG2[\"layer2-yolo:latest\"]\n    end\n\n    CAM --&gt; UPLOADER --&gt; RAW\n    RAW --&gt; L1APP\n    L1APP -- \"MSE &gt; τ\\nenqueue image_uri\" --&gt; QUEUE\n    QUEUE -- \"KEDA trigger\\nscale-up\" --&gt; L2APP\n    L2APP -- \"conf &lt; 0.85\" --&gt; GPT4O\n    GPT4O --&gt; LOGS\n    L2APP -- \"conf ≥ 0.85\" --&gt; LOGS\n    AML --&gt; REGISTRY\n    REGISTRY --&gt; ACR\n    ACR --&gt; L1APP\n    ACR --&gt; L2APP\n\n    style ACA fill:#dbeafe,stroke:#3b82f6\n    style SB fill:#fef9c3,stroke:#eab308\n    style OPENAI fill:#f3e8ff,stroke:#a855f7\n    style AML fill:#f0fdf4,stroke:#16a34a\n\n\n\n\nFigure 4: Full Azure infrastructure diagram"
-  },
-  {
-    "objectID": "architecture.html#deployment-checklist",
-    "href": "architecture.html#deployment-checklist",
-    "title": "System Architecture",
-    "section": "Deployment Checklist",
-    "text": "Deployment Checklist\n\n\n\nStep\nCommand / Action\n\n\n\n\n1. Request T4 GPU quota\nAzure Portal → Support → “Managed Environment Consumption T4 Gpus”\n\n\n2. Create resource group\naz group create --name cascade-defect-rg --location westeurope\n\n\n3. Create ACR\naz acr create --name cascadedefectacr --sku Basic\n\n\n4. Build & push images\naz acr build --registry cascadedefectacr ...\n\n\n5. Create ACA environment\nSee azure_container_apps.md\n\n\n6. Deploy container apps\naz containerapp create ...\n\n\n7. Configure KEDA\naz containerapp update --scale-rule-type azure-servicebus ...\n\n\n\n\n\n\n\n\n\nWarningCold-Start Penalty\n\n\n\nScaling from zero replicas with a T4 GPU attached takes 30–90 seconds (image pull + GPU attachment). This is not part of the inference latency and must be measured and documented separately. In production, keep Layer 2 at --min-replicas 1 during active factory shifts."
-  },
-  {
-    "objectID": "data-strategy.html",
-    "href": "data-strategy.html",
-    "title": "Data Strategy",
-    "section": "",
-    "text": "The foundation of this project is the NEU Metal Surface Defects Database — a widely used benchmark for surface defect detection in rolled steel manufacturing.\n\n\n\nProperty\nValue\n\n\n\n\nSource\nKaggle (yiyang-feng/neu-metal-surface-defects-database)\n\n\nTotal images\n1,800\n\n\nClasses\n6 (see below)\n\n\nImage size\n200×200 px (greyscale)\n\n\nImages per class\n300 (balanced)\n\n\n\n\n\n\n\n\n\n\n\n\nflowchart TD\n    ROOT[\"NEU Surface Defects\\n1,800 images\"]\n    C1[\"🔵 Crazing\\n300 imgs\"]\n    C2[\"🟢 Inclusion\\n300 imgs\"]\n    C3[\"🟡 Patches\\n300 imgs\"]\n    C4[\"🟠 Pitted Surface\\n300 imgs\"]\n    C5[\"🔴 Rolled-in Scale\\n300 imgs\"]\n    C6[\"🟣 Scratches\\n300 imgs\"]\n\n    ROOT --&gt; C1\n    ROOT --&gt; C2\n    ROOT --&gt; C3\n    ROOT --&gt; C4\n    ROOT --&gt; C5\n    ROOT --&gt; C6\n\n\n\n\nFigure 1: NEU dataset defect class taxonomy"
-  },
-  {
-    "objectID": "data-strategy.html#dataset-neu-metal-surface-defects",
-    "href": "data-strategy.html#dataset-neu-metal-surface-defects",
-    "title": "Data Strategy",
-    "section": "",
-    "text": "The foundation of this project is the NEU Metal Surface Defects Database — a widely used benchmark for surface defect detection in rolled steel manufacturing.\n\n\n\nProperty\nValue\n\n\n\n\nSource\nKaggle (yiyang-feng/neu-metal-surface-defects-database)\n\n\nTotal images\n1,800\n\n\nClasses\n6 (see below)\n\n\nImage size\n200×200 px (greyscale)\n\n\nImages per class\n300 (balanced)\n\n\n\n\n\n\n\n\n\n\n\n\nflowchart TD\n    ROOT[\"NEU Surface Defects\\n1,800 images\"]\n    C1[\"🔵 Crazing\\n300 imgs\"]\n    C2[\"🟢 Inclusion\\n300 imgs\"]\n    C3[\"🟡 Patches\\n300 imgs\"]\n    C4[\"🟠 Pitted Surface\\n300 imgs\"]\n    C5[\"🔴 Rolled-in Scale\\n300 imgs\"]\n    C6[\"🟣 Scratches\\n300 imgs\"]\n\n    ROOT --&gt; C1\n    ROOT --&gt; C2\n    ROOT --&gt; C3\n    ROOT --&gt; C4\n    ROOT --&gt; C5\n    ROOT --&gt; C6\n\n\n\n\nFigure 1: NEU dataset defect class taxonomy"
-  },
-  {
-    "objectID": "data-strategy.html#the-three-way-split",
-    "href": "data-strategy.html#the-three-way-split",
-    "title": "Data Strategy",
-    "section": "The Three-Way Split",
-    "text": "The Three-Way Split\nWe simulate a real-world factory scenario where only a tiny fraction of images are manually labelled.\n\n%%| label: fig-split\n%%| fig-cap: \"Dataset split strategy\"\nflowchart LR\n    RAW[\"NEU Dataset\\n1,800 images\\n6 classes\"]\n\n    subgraph SEED[\"🌱 Few-Shot Seed (1%)\"]\n        S[\"18 images\\n3 per class\\nLabels kept\"]\n    end\n\n    subgraph UNLABELLED[\"🔓 Unlabelled Pool (79%)\"]\n        U[\"~1,420 images\\nLabels stripped\\nPseudo-labelled by GPT-4o\"]\n    end\n\n    subgraph TEST[\"🧪 Golden Test Set (20%)\"]\n        T[\"360 images\\nGround-truth labels\\nNever used in training\"]\n    end\n\n    RAW --&gt; SEED\n    RAW --&gt; UNLABELLED\n    RAW --&gt; TEST\n\n    S --&gt; PROMPT[\"GPT-4o\\nFew-Shot System Prompt\"]\n    U --&gt; GPT4O[\"GPT-4o\\nBatch Annotation\"]\n    PROMPT --&gt; GPT4O\n    GPT4O --&gt; PSEUDO[\"Pseudo-Labels\\n(YOLO format)\"]\n    PSEUDO --&gt; YOLO[\"YOLOv8n\\nTraining\"]\n\n    style SEED fill:#dcfce7,stroke:#16a34a\n    style UNLABELLED fill:#fef9c3,stroke:#ca8a04\n    style TEST fill:#fee2e2,stroke:#dc2626\n\n\nWhy Pseudo-Labels?\nThis split simulates the core value proposition: you can train a high-quality detection model with almost no manual labelling effort, by using a powerful MLLM to annotate the unlabelled pool. The 360-image test set then measures how well this pseudo-labelled model compares to one trained on human annotations."
-  },
-  {
-    "objectID": "data-strategy.html#gpt-4o-annotation-pipeline",
-    "href": "data-strategy.html#gpt-4o-annotation-pipeline",
-    "title": "Data Strategy",
-    "section": "GPT-4o Annotation Pipeline",
-    "text": "GPT-4o Annotation Pipeline\n\n\n\n\n\n\n\nsequenceDiagram\n    participant SEED as Seed Images (18)\n    participant ANNOT as annotate.py\n    participant AZ as Azure OpenAI&lt;br/&gt;gpt-4o\n    participant STORE as ADLS&lt;br/&gt;pseudo_labels.json\n\n    ANNOT-&gt;&gt;SEED: Load 3 examples per class\n    ANNOT-&gt;&gt;ANNOT: Encode to base64\n    loop For each unlabelled image (~1,420)\n        ANNOT-&gt;&gt;AZ: Few-shot prompt\\n+ query image\n        AZ--&gt;&gt;ANNOT: DefectPrediction JSON\\n{class, conf, reasoning}\n        ANNOT-&gt;&gt;STORE: Append result\n    end\n    ANNOT-&gt;&gt;STORE: Write final pseudo_labels.json\n\n\n\n\nFigure 2: Offline pseudo-labelling pipeline\n\n\n\n\n\n\nCost estimate for annotation run:\n\n\n\n\n\n\n\nItem\nValue\n\n\n\n\nImages to annotate\n~1,420\n\n\nAvg tokens per request (input)\n~2,500 (18 seed images + system prompt)\n\n\nAvg tokens per response\n~50\n\n\nGPT-4o price (input / 1M tokens)\n$2.50\n\n\nGPT-4o price (output / 1M tokens)\n$10.00\n\n\nEstimated total cost\n~$9.00\n\n\n\n\n\n\n\n\n\nTipOne-Off Cost\n\n\n\nThe annotation run is a one-time offline cost. Once pseudo_labels.json is generated and stored in ADLS, YOLOv8 can be retrained from it at negligible cost. This is the key economic argument for the cascade approach."
-  },
-  {
-    "objectID": "data-strategy.html#data-engineering-on-azure",
-    "href": "data-strategy.html#data-engineering-on-azure",
-    "title": "Data Strategy",
-    "section": "Data Engineering on Azure",
-    "text": "Data Engineering on Azure\n\n\n\n\n\n\n\nflowchart TB\n    subgraph LOCAL[\"Local / GitHub Codespaces\"]\n        DOWNLOAD[\"kaggle datasets download\\nneu-metal-surface-defects\"]\n        SPLIT[\"uv run python\\nsrc/cascade_defect/data/split.py\"]\n    end\n\n    subgraph ADLS[\"Azure Data Lake Gen2\"]\n        direction LR\n        R[\"raw/NEU-DET/\\n1800 images\"]\n        SP[\"splits/\\n├── seed/ (18)\\n├── unlabelled/ (~1420)\\n└── test/ (360)\"]\n        PL[\"processed/\\npseudo_labels.json\"]\n    end\n\n    subgraph AML[\"Azure ML Workspace\"]\n        DS[\"Registered Dataset\\nneu-defects-v1\"]\n        JOB[\"Training Job\\nStandard_NC6s_v3\"]\n    end\n\n    DOWNLOAD --&gt; R\n    R --&gt; SPLIT\n    SPLIT --&gt; SP\n    SP --&gt; PL\n    SP --&gt; DS\n    DS --&gt; JOB\n\n\n\n\nFigure 3: End-to-end data pipeline on Azure\n\n\n\n\n\n\n\nCommands\n# 1. Download from Kaggle (requires kaggle.json in ~/.kaggle/)\nuv run kaggle datasets download yiyang-feng/neu-metal-surface-defects-database -p data/raw/\n\n# 2. Run the split\nuv run python src/cascade_defect/data/split.py \\\n  --raw-dir data/raw/NEU-DET/images \\\n  --output-dir data/splits\n\n# 3. Upload to ADLS\naz storage blob upload-batch \\\n  --account-name cascadedefectadls \\\n  --destination raw \\\n  --source data/raw \\\n  --auth-mode login\n\naz storage blob upload-batch \\\n  --account-name cascadedefectadls \\\n  --destination splits \\\n  --source data/splits \\\n  --auth-mode login"
-  },
-  {
-    "objectID": "data-strategy.html#label-schema-pydantic",
-    "href": "data-strategy.html#label-schema-pydantic",
-    "title": "Data Strategy",
-    "section": "Label Schema (Pydantic)",
-    "text": "Label Schema (Pydantic)\nThe structured output from GPT-4o is validated against this Pydantic model before being stored:\nclass DefectPrediction(BaseModel):\n    defect_class: str       # One of 6 NEU classes, or \"no_defect\"\n    confidence: float       # 0.0 – 1.0\n    reasoning: str          # One-sentence justification\n    bounding_box_present: bool  # Did GPT-4o identify a localised region?\nThis schema is enforced at the API level using client.beta.chat.completions.parse(), which guarantees that malformed GPT-4o responses raise a ValidationError rather than silently corrupting the label database."
-  },
-  {
-    "objectID": "index.html",
-    "href": "index.html",
-    "title": "Project Cascade Defect",
-    "section": "",
-    "text": "Project Cascade Defect is a proof-of-concept machine learning portfolio project that demonstrates how to optimise a defect-detection system for inference cost, latency, and accuracy simultaneously.\nInstead of running every factory camera frame through an expensive Multimodal Large Language Model (MLLM), we route frames through a three-layer Cascade Architecture — where most frames are handled cheaply and quickly, and only ambiguous edge-cases escalate to GPT-4o.\n\n\n\n\n\n\n\nflowchart LR\n    INPUT([🖼️ Raw Frame])\n\n    subgraph L1[\"Layer 1 — Gatekeeper\"]\n        AE[\"Conv Autoencoder\\nMSE Reconstruction\"]\n        T1{\"MSE &gt; τ?\"}\n    end\n\n    subgraph L2[\"Layer 2 — Specialist\"]\n        YOLO[\"YOLOv8n\\nInference\"]\n        T2{\"Conf ≥ 85%?\"}\n    end\n\n    subgraph L3[\"Layer 3 — Oracle\"]\n        GPT[\"GPT-4o\\nFew-Shot Prompt\"]\n    end\n\n    DISCARD([\"✅ No Defect\"])\n    LOG([\"📋 Log & Archive\"])\n\n    INPUT --&gt; AE\n    AE --&gt; T1\n    T1 -- No --&gt; DISCARD\n    T1 -- Yes --&gt; YOLO\n    YOLO --&gt; T2\n    T2 -- Yes --&gt; LOG\n    T2 -- No --&gt; GPT\n    GPT --&gt; LOG\n\n    style L1 fill:#dbeafe,stroke:#3b82f6\n    style L2 fill:#dcfce7,stroke:#22c55e\n    style L3 fill:#fef9c3,stroke:#eab308\n\n\n\n\nFigure 1: High-level cascade pipeline overview"
-  },
-  {
-    "objectID": "index.html#overview",
-    "href": "index.html#overview",
-    "title": "Project Cascade Defect",
-    "section": "",
-    "text": "Project Cascade Defect is a proof-of-concept machine learning portfolio project that demonstrates how to optimise a defect-detection system for inference cost, latency, and accuracy simultaneously.\nInstead of running every factory camera frame through an expensive Multimodal Large Language Model (MLLM), we route frames through a three-layer Cascade Architecture — where most frames are handled cheaply and quickly, and only ambiguous edge-cases escalate to GPT-4o.\n\n\n\n\n\n\n\nflowchart LR\n    INPUT([🖼️ Raw Frame])\n\n    subgraph L1[\"Layer 1 — Gatekeeper\"]\n        AE[\"Conv Autoencoder\\nMSE Reconstruction\"]\n        T1{\"MSE &gt; τ?\"}\n    end\n\n    subgraph L2[\"Layer 2 — Specialist\"]\n        YOLO[\"YOLOv8n\\nInference\"]\n        T2{\"Conf ≥ 85%?\"}\n    end\n\n    subgraph L3[\"Layer 3 — Oracle\"]\n        GPT[\"GPT-4o\\nFew-Shot Prompt\"]\n    end\n\n    DISCARD([\"✅ No Defect\"])\n    LOG([\"📋 Log & Archive\"])\n\n    INPUT --&gt; AE\n    AE --&gt; T1\n    T1 -- No --&gt; DISCARD\n    T1 -- Yes --&gt; YOLO\n    YOLO --&gt; T2\n    T2 -- Yes --&gt; LOG\n    T2 -- No --&gt; GPT\n    GPT --&gt; LOG\n\n    style L1 fill:#dbeafe,stroke:#3b82f6\n    style L2 fill:#dcfce7,stroke:#22c55e\n    style L3 fill:#fef9c3,stroke:#eab308\n\n\n\n\nFigure 1: High-level cascade pipeline overview"
-  },
-  {
-    "objectID": "index.html#why-a-cascade",
-    "href": "index.html#why-a-cascade",
-    "title": "Project Cascade Defect",
-    "section": "Why a Cascade?",
-    "text": "Why a Cascade?\n\n\n\nApproach\nCost per frame\nLatency\nAccuracy\n\n\n\n\nPure MLLM (GPT-4o for everything)\n~$0.002\n~3 s\n★★★★★\n\n\nPure Classical (YOLOv8 only)\n~$0.000001\n~15 ms\n★★★★☆\n\n\nCascade (this project)\n~$0.0000015\n~18 ms avg\n★★★★★\n\n\n\nThe cascade architecture captures the best of both worlds: classical computer vision handles the 95%+ of “easy” cases in milliseconds, while GPT-4o is reserved for the rare edge cases where certainty matters most."
-  },
-  {
-    "objectID": "index.html#key-technologies",
-    "href": "index.html#key-technologies",
-    "title": "Project Cascade Defect",
-    "section": "Key Technologies",
-    "text": "Key Technologies\n\nModel Training: Azure Machine Learning (AML) on Standard_NC6s_v3 compute\nInference: Azure Container Apps (ACA) with NVIDIA T4 GPU, scale-to-zero via KEDA\nEvent Bus: Azure Service Bus (decoupled queue between cascade layers)\nStorage: Azure Data Lake Storage Gen2\nMLLM: Azure OpenAI gpt-4o with Pydantic-enforced structured JSON output\nPackage Manager: uv (fast, reproducible Python dependency management)\nWebsite: Quarto (this site — Mermaid.js diagrams, executable Python cells)"
-  },
-  {
-    "objectID": "index.html#project-structure",
-    "href": "index.html#project-structure",
-    "title": "Project Cascade Defect",
-    "section": "Project Structure",
-    "text": "Project Structure\ncascade-defect/\n├── .agents/skills/          # Copilot domain-knowledge files\n├── .claude/plans/           # Project implementation plan\n├── .devcontainer/           # VS Code / Codespaces container config\n├── .pre-commit-config.yaml  # nbstripout + ruff hooks\n├── docs/                    # This Quarto website\n├── src/cascade_defect/      # Python source package\n│   ├── data/                # Dataset split utilities\n│   ├── layer1_autoencoder/  # Conv AE model, training, FastAPI app\n│   ├── layer2_yolo/         # YOLOv8 inference FastAPI app\n│   └── layer3_gpt4o/        # GPT-4o oracle FastAPI app\n├── tests/                   # pytest unit tests\n└── pyproject.toml           # uv-managed project config"
-  },
-  {
-    "objectID": "index.html#quick-links",
-    "href": "index.html#quick-links",
-    "title": "Project Cascade Defect",
-    "section": "Quick Links",
-    "text": "Quick Links\n\nArchitecture → — Detailed system design with Mermaid diagrams\nData Strategy → — Dataset splits and pseudo-labelling pipeline\nEvaluation → — Latency, cost, and accuracy benchmarks"
+    "objectID": "inferences.html#what-to-take-from-these-three-frames",
+    "href": "inferences.html#what-to-take-from-these-three-frames",
+    "title": "Inference walkthroughs",
+    "section": "What to take from these three frames",
+    "text": "What to take from these three frames\n\n\n\n\nFrame 1 (inclusion)\nFrame 2 (crazing)\nFrame 3 (patches)\n\n\n\n\nStopped at\nL1\nL3\nL3\n\n\nWall-clock\n65 ms\n55.4 s*\n~55 s*\n\n\nCost (USD)\n$0\n~$0.0005\n~$0.0005\n\n\nDecision\nwrong (false negative)\ncorrect\ncorrect\n\n\n\n* L3 wall-clock includes a cold-start on Azure Container Apps; warm L3 latency runs ~2 s. The Evaluation page reports p50/p95 over the full 60-image run.\nThe pattern across all 60 evaluation frames matches what these three illustrate:\n\nThe L1 short-circuit is fast and cheap but its accuracy is bounded by what the AE has seen as “normal”. On NEU, that ceiling is low.\nL2 is currently a no-op that exists structurally — its outputs are sane only on COCO classes. Phase J fixes this with proper bbox training.\nL3 is slow and expensive but, on every frame the router actually commits to it, correct (27/27 in the v1 run).\n\nThe cost-savings story (55%, 100% accuracy on classified frames) survives the dataset critique because it is a property of the router, not of the v1 dataset. The Oracle is invoked only when needed; that’s the architectural win. Phase J should push the L1 drop rate from 53% to 80%+, which is where the cost ratio gets really interesting."
   }
 ]

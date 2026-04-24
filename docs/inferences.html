@@ -6,10 +6,8 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="author" content="j-jayes">
-<meta name="dcterms.date" content="2026-04-24">
 
-<title>Project Cascade Defect</title>
+<title>Inference walkthroughs – Project Cascade Defect</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -48,6 +46,9 @@ ul.task-list li input[type="checkbox"] {
 <link href="site_libs/bootstrap/bootstrap-6c17f5b0fb68843ed4719f05c4fa2958.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
 <link href="site_libs/bootstrap/bootstrap-dark-3acd9f2b5eccf98692d400b1b7990e0b.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
 <link href="site_libs/bootstrap/bootstrap-6c17f5b0fb68843ed4719f05c4fa2958.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
+<link href="site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
+<link href="site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -76,10 +77,6 @@ ul.task-list li input[type="checkbox"] {
   }
 }</script>
 <style>html{ scroll-behavior: smooth; }</style>
-<meta name="mermaid-theme" content="default">
-<script src="site_libs/quarto-diagram/mermaid.min.js"></script>
-<script src="site_libs/quarto-diagram/mermaid-init.js"></script>
-<link href="site_libs/quarto-diagram/mermaid.css" rel="stylesheet">
 
 
 </head>
@@ -266,7 +263,7 @@ ul.task-list li input[type="checkbox"] {
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
-    <a class="nav-link active" href="./index.html" aria-current="page"> 
+    <a class="nav-link" href="./index.html"> 
 <span class="menu-text">Home</span></a>
   </li>  
   <li class="nav-item">
@@ -282,7 +279,7 @@ ul.task-list li input[type="checkbox"] {
 <span class="menu-text">Data Strategy</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./inferences.html"> 
+    <a class="nav-link active" href="./inferences.html" aria-current="page"> 
 <span class="menu-text">Inferences</span></a>
   </li>  
   <li class="nav-item">
@@ -305,7 +302,7 @@ ul.task-list li input[type="checkbox"] {
     </nav>
 </header>
 <!-- content -->
-<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-full page-navbar">
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
 <!-- sidebar -->
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
@@ -313,41 +310,28 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#overview" id="toc-overview" class="nav-link active" data-scroll-target="#overview">Overview</a></li>
-  <li><a href="#why-a-cascade" id="toc-why-a-cascade" class="nav-link" data-scroll-target="#why-a-cascade">Why a Cascade?</a></li>
-  <li><a href="#key-technologies" id="toc-key-technologies" class="nav-link" data-scroll-target="#key-technologies">Key Technologies</a></li>
-  <li><a href="#project-structure" id="toc-project-structure" class="nav-link" data-scroll-target="#project-structure">Project Structure</a></li>
-  <li><a href="#quick-links" id="toc-quick-links" class="nav-link" data-scroll-target="#quick-links">Quick Links</a></li>
+  <li><a href="#layer-1-short-circuit-the-cheap-path" id="toc-layer-1-short-circuit-the-cheap-path" class="nav-link active" data-scroll-target="#layer-1-short-circuit-the-cheap-path">1. Layer-1 short-circuit — the cheap path</a></li>
+  <li><a href="#full-cascade-l1-l2-l3-the-oracle-nails-it" id="toc-full-cascade-l1-l2-l3-the-oracle-nails-it" class="nav-link" data-scroll-target="#full-cascade-l1-l2-l3-the-oracle-nails-it">2. Full cascade L1 → L2 → L3 — the Oracle nails it</a></li>
+  <li><a href="#same-path-different-defect-class" id="toc-same-path-different-defect-class" class="nav-link" data-scroll-target="#same-path-different-defect-class">3. Same path, different defect class</a></li>
+  <li><a href="#what-to-take-from-these-three-frames" id="toc-what-to-take-from-these-three-frames" class="nav-link" data-scroll-target="#what-to-take-from-these-three-frames">What to take from these three frames</a></li>
   </ul>
 </nav>
     </div>
 <!-- main -->
-<main class="content page-columns page-full column-body" id="quarto-document-content">
+<main class="content" id="quarto-document-content">
 
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Project Cascade Defect</h1>
-<p class="subtitle lead">A Cost-Effective ML Cascade Pipeline for Real-Time Rolled-Metal Surface Defect Detection</p>
+<h1 class="title">Inference walkthroughs</h1>
+<p class="subtitle lead">Three real frames, end-to-end through the deployed cascade</p>
 </div>
 
 
 
-<div class="quarto-title-meta column-body">
+<div class="quarto-title-meta">
 
-    <div>
-    <div class="quarto-title-meta-heading">Author</div>
-    <div class="quarto-title-meta-contents">
-             <p>j-jayes </p>
-          </div>
-  </div>
     
-    <div>
-    <div class="quarto-title-meta-heading">Published</div>
-    <div class="quarto-title-meta-contents">
-      <p class="date">April 24, 2026</p>
-    </div>
-  </div>
   
     
   </div>
@@ -357,130 +341,227 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<section id="overview" class="level2 page-columns page-full">
-<h2 class="anchored" data-anchor-id="overview">Overview</h2>
-<p><strong>Project Cascade Defect</strong> is a proof-of-concept machine learning portfolio project that demonstrates how to optimise a defect-detection system for <strong>inference cost, latency, and accuracy</strong> simultaneously.</p>
-<p>Instead of running every factory camera frame through an expensive Multimodal Large Language Model (MLLM), we route frames through a three-layer <strong>Cascade Architecture</strong> — where most frames are handled cheaply and quickly, and only ambiguous edge-cases escalate to GPT-4o.</p>
-<div class="column-page">
-<div class="cell" data-layout-align="default">
-<div class="cell-output-display">
-<div id="fig-overview" class="quarto-float quarto-figure quarto-figure-center anchored">
+<p>These are real responses from the live router on three hand-picked test frames. For each example we show, side-by-side:</p>
+<ol type="1">
+<li><strong>Input</strong> — the 200×200 NEU test image as the camera “sees” it.</li>
+<li><strong>L1 reconstruction</strong> — what the autoencoder thinks the surface <em>should</em> look like. If this is close to the input, MSE is low and the frame exits the cascade in milliseconds.</li>
+<li><strong>L1 difference heatmap</strong> — <code>|input − reconstruction|</code>, brighter = AE was more surprised. This is what the gatekeeper actually keys off.</li>
+<li><strong>L2 detection overlay</strong> — top-3 YOLO bounding boxes (red = #1 by confidence). The v1 YOLO is the COCO-pretrained YOLOv8n; its outputs are deliberately shown unedited so the architectural reason for L3’s existence is visible.</li>
+</ol>
+<p>The textual block under each panel reproduces the exact router trace from <a href="https://github.com/j-jayes/Scratching-the-Surface/blob/main/reports/metrics.json">reports/eval_cascade.jsonl</a> plus the GPT-4.1-mini reasoning string when L3 was invoked.</p>
+<hr>
+<section id="layer-1-short-circuit-the-cheap-path" class="level2">
+<h2 class="anchored" data-anchor-id="layer-1-short-circuit-the-cheap-path">1. Layer-1 short-circuit — the cheap path</h2>
+<div id="fig-l1-stop" class="quarto-layout-panel">
 <figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-overview-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div>
-<pre class="mermaid mermaid-js" data-label="fig-overview">flowchart LR
-    INPUT([🖼️ Raw Frame])
-
-    subgraph L1["Layer 1 — Gatekeeper"]
-        AE["Conv Autoencoder\nMSE Reconstruction"]
-        T1{"MSE &gt; τ?"}
-    end
-
-    subgraph L2["Layer 2 — Specialist"]
-        YOLO["YOLOv8n\nInference"]
-        T2{"Conf ≥ 85%?"}
-    end
-
-    subgraph L3["Layer 3 — Oracle"]
-        GPT["GPT-4o\nFew-Shot Prompt"]
-    end
-
-    DISCARD(["✅ No Defect"])
-    LOG(["📋 Log &amp; Archive"])
-
-    INPUT --&gt; AE
-    AE --&gt; T1
-    T1 -- No --&gt; DISCARD
-    T1 -- Yes --&gt; YOLO
-    YOLO --&gt; T2
-    T2 -- Yes --&gt; LOG
-    T2 -- No --&gt; GPT
-    GPT --&gt; LOG
-
-    style L1 fill:#dbeafe,stroke:#3b82f6
-    style L2 fill:#dcfce7,stroke:#22c55e
-    style L3 fill:#fef9c3,stroke:#eab308
-</pre>
+<div aria-describedby="fig-l1-stop-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="quarto-layout-row">
+<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: flex-start;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="assets/inferences/01_l1_dropped_inclusion/input.jpg" class="lightbox" data-gallery="ex1" title="Input — inclusion/img_001.jpg"><img src="assets/inferences/01_l1_dropped_inclusion/input.jpg" class="img-fluid figure-img"></a></p>
+<figcaption>Input — <code>inclusion/img_001.jpg</code></figcaption>
+</figure>
 </div>
 </div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-overview-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;1: High-level cascade pipeline overview
-</figcaption>
+<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: flex-start;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="assets/inferences/01_l1_dropped_inclusion/recon.jpg" class="lightbox" data-gallery="ex1" title="L1 reconstruction"><img src="assets/inferences/01_l1_dropped_inclusion/recon.jpg" class="img-fluid figure-img"></a></p>
+<figcaption>L1 reconstruction</figcaption>
+</figure>
+</div>
+</div>
+<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: flex-start;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="assets/inferences/01_l1_dropped_inclusion/diff.jpg" class="lightbox" data-gallery="ex1" title="L1 diff heatmap"><img src="assets/inferences/01_l1_dropped_inclusion/diff.jpg" class="img-fluid figure-img"></a></p>
+<figcaption>L1 diff heatmap</figcaption>
+</figure>
+</div>
+</div>
+<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: flex-start;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="assets/inferences/01_l1_dropped_inclusion/yolo.jpg" class="lightbox" data-gallery="ex1" title="L2 (not invoked) — COCO-YOLO sanity check"><img src="assets/inferences/01_l1_dropped_inclusion/yolo.jpg" class="img-fluid figure-img"></a></p>
+<figcaption>L2 (not invoked) — COCO-YOLO sanity check</figcaption>
 </figure>
 </div>
 </div>
 </div>
 </div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-l1-stop-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Layer-1 reconstruction is near-perfect. MSE is well below threshold, so the frame exits in 65 ms without ever touching L2 or L3.
+</figcaption>
+</figure>
+</div>
+<blockquote class="blockquote">
+<p><strong>Router trace</strong> (true label: <code>inclusion</code>, decision: <code>no_defect</code>, stopped at L1, total 65 ms)</p>
+<ul>
+<li><strong>L1</strong> → <code>no_defect</code> · MSE 0.000931 · threshold 0.0067</li>
+</ul>
+<p><em>Honest reading.</em> This is a defective frame the cascade <strong>incorrectly</strong> dropped. NEU’s inclusion class happens to look “normal-ish” against the <code>rolled-in_scale</code> proxy the AE was trained on. The cascade plumbing did its job — speed-wise it’s exactly right — but the underlying AE has no genuine “normal” class to compare against. This single failure mode is what motivates the <a href="https://github.com/j-jayes/Scratching-the-Surface/blob/main/.claude/plans/cascade_defect_plan.md#phase-j--visa-extension-the-right-shape-of-data-demo">Phase J swap to VisA</a>.</p>
+</blockquote>
+<hr>
 </section>
-<section id="why-a-cascade" class="level2">
-<h2 class="anchored" data-anchor-id="why-a-cascade">Why a Cascade?</h2>
+<section id="full-cascade-l1-l2-l3-the-oracle-nails-it" class="level2">
+<h2 class="anchored" data-anchor-id="full-cascade-l1-l2-l3-the-oracle-nails-it">2. Full cascade L1 → L2 → L3 — the Oracle nails it</h2>
+<div id="fig-l3-crazing" class="quarto-layout-panel">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-l3-crazing-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="quarto-layout-row">
+<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: flex-start;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="assets/inferences/02_l3_oracle_crazing/input.jpg" class="lightbox" data-gallery="ex2" title="Input — crazing/img_005.jpg"><img src="assets/inferences/02_l3_oracle_crazing/input.jpg" class="img-fluid figure-img"></a></p>
+<figcaption>Input — <code>crazing/img_005.jpg</code></figcaption>
+</figure>
+</div>
+</div>
+<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: flex-start;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="assets/inferences/02_l3_oracle_crazing/recon.jpg" class="lightbox" data-gallery="ex2" title="L1 reconstruction"><img src="assets/inferences/02_l3_oracle_crazing/recon.jpg" class="img-fluid figure-img"></a></p>
+<figcaption>L1 reconstruction</figcaption>
+</figure>
+</div>
+</div>
+<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: flex-start;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="assets/inferences/02_l3_oracle_crazing/diff.jpg" class="lightbox" data-gallery="ex2" title="L1 diff heatmap (clearly noisy across the network of cracks)"><img src="assets/inferences/02_l3_oracle_crazing/diff.jpg" class="img-fluid figure-img"></a></p>
+<figcaption>L1 diff heatmap (clearly noisy across the network of cracks)</figcaption>
+</figure>
+</div>
+</div>
+<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: flex-start;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="assets/inferences/02_l3_oracle_crazing/yolo.jpg" class="lightbox" data-gallery="ex2" title="L2 — top-3 YOLO boxes (cat, person, cat); not defect-trained"><img src="assets/inferences/02_l3_oracle_crazing/yolo.jpg" class="img-fluid figure-img"></a></p>
+<figcaption>L2 — top-3 YOLO boxes (<code>cat</code>, <code>person</code>, <code>cat</code>); not defect-trained</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-l3-crazing-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: The AE flags the frame, the COCO-YOLO returns nonsense at very low confidence, the router escalates to the Oracle, GPT-4.1-mini gets it right.
+</figcaption>
+</figure>
+</div>
+<blockquote class="blockquote">
+<p><strong>Router trace</strong> (true label: <code>crazing</code>, decision: <code>defect</code>, stopped at L3, total 55,431 ms)</p>
+<ul>
+<li><strong>L1</strong> → <code>defect_candidate</code> · MSE 0.00877 (&gt; τ=0.0067) · escalate</li>
+<li><strong>L2</strong> → <code>defect_detected</code> class=<code>cat</code> confidence=<code>0.012</code> (COCO-YOLO is not defect-trained — confidence below escalate-threshold 0.7 → escalate)</li>
+<li><strong>L3</strong> → <code>defect</code> class=<code>crazing</code> confidence=<code>0.95</code> · 2,574 tokens · <code>"The image shows fine network-like cracks typical of crazing defects."</code></li>
+</ul>
+<p><em>What this shows.</em> Layer 2’s failure mode is the actual reason the Oracle exists. Until YOLO is fine-tuned on real defect bounding boxes (Phase F.1, queued for Phase J), every L1-positive frame escalates to L3. That is expensive and slow — <em>but it is correct</em>, and the router design means the moment YOLO gets retrained, cost and latency drop without any other code change.</p>
+</blockquote>
+<hr>
+</section>
+<section id="same-path-different-defect-class" class="level2">
+<h2 class="anchored" data-anchor-id="same-path-different-defect-class">3. Same path, different defect class</h2>
+<div id="fig-l3-patches" class="quarto-layout-panel">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-l3-patches-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="quarto-layout-row">
+<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: flex-start;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="assets/inferences/03_l3_oracle_patches/input.jpg" class="lightbox" data-gallery="ex3" title="Input — patches/img_000.jpg"><img src="assets/inferences/03_l3_oracle_patches/input.jpg" class="img-fluid figure-img"></a></p>
+<figcaption>Input — <code>patches/img_000.jpg</code></figcaption>
+</figure>
+</div>
+</div>
+<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: flex-start;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="assets/inferences/03_l3_oracle_patches/recon.jpg" class="lightbox" data-gallery="ex3" title="L1 reconstruction (struggles on the dark patches)"><img src="assets/inferences/03_l3_oracle_patches/recon.jpg" class="img-fluid figure-img"></a></p>
+<figcaption>L1 reconstruction (struggles on the dark patches)</figcaption>
+</figure>
+</div>
+</div>
+<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: flex-start;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="assets/inferences/03_l3_oracle_patches/diff.jpg" class="lightbox" data-gallery="ex3" title="L1 diff heatmap (hot wherever the patches are)"><img src="assets/inferences/03_l3_oracle_patches/diff.jpg" class="img-fluid figure-img"></a></p>
+<figcaption>L1 diff heatmap (hot wherever the patches are)</figcaption>
+</figure>
+</div>
+</div>
+<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: flex-start;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><a href="assets/inferences/03_l3_oracle_patches/yolo.jpg" class="lightbox" data-gallery="ex3" title="L2 — top-3 boxes still off-domain"><img src="assets/inferences/03_l3_oracle_patches/yolo.jpg" class="img-fluid figure-img"></a></p>
+<figcaption>L2 — top-3 boxes still off-domain</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-l3-patches-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3: Same routing path, different defect class — proof the Oracle generalises across the six NEU categories from a single 6-shot prompt.
+</figcaption>
+</figure>
+</div>
+<blockquote class="blockquote">
+<p><strong>Router trace</strong> (true label: <code>patches</code>, decision: <code>defect</code>, stopped at L3)</p>
+<ul>
+<li><strong>L1</strong> → <code>defect_candidate</code> · MSE 0.0263 (4× threshold) · escalate</li>
+<li><strong>L2</strong> → <code>defect_detected</code> class=<code>cat</code> confidence=<code>0.103</code> (still off-domain) · escalate</li>
+<li><strong>L3</strong> → <code>defect</code> class=<code>patches</code> confidence=<code>0.95</code> · 2,577 tokens · <code>"The image shows irregular dark areas with diffuse edges similar to the reference examples of patches."</code></li>
+</ul>
+<p><em>What this shows.</em> The router is class-agnostic. All six defect classes flow through the same logic; only the L3 system prompt encodes domain vocabulary. Adding a seventh class for v2 would mean adding one few-shot exemplar and one Pydantic enum value — no router or container changes.</p>
+</blockquote>
+<hr>
+</section>
+<section id="what-to-take-from-these-three-frames" class="level2">
+<h2 class="anchored" data-anchor-id="what-to-take-from-these-three-frames">What to take from these three frames</h2>
 <table class="caption-top table">
 <thead>
 <tr class="header">
-<th>Approach</th>
-<th>Cost per frame</th>
-<th>Latency</th>
-<th>Accuracy</th>
+<th></th>
+<th>Frame 1 (inclusion)</th>
+<th>Frame 2 (crazing)</th>
+<th>Frame 3 (patches)</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>Pure MLLM (GPT-4o for everything)</td>
-<td>~$0.002</td>
-<td>~3 s</td>
-<td>★★★★★</td>
+<td>Stopped at</td>
+<td><strong>L1</strong></td>
+<td><strong>L3</strong></td>
+<td><strong>L3</strong></td>
 </tr>
 <tr class="even">
-<td>Pure Classical (YOLOv8 only)</td>
-<td>~$0.000001</td>
-<td>~15 ms</td>
-<td>★★★★☆</td>
+<td>Wall-clock</td>
+<td>65 ms</td>
+<td>55.4 s*</td>
+<td>~55 s*</td>
 </tr>
 <tr class="odd">
-<td><strong>Cascade (this project)</strong></td>
-<td>~$0.0000015</td>
-<td>~18 ms avg</td>
-<td>★★★★★</td>
+<td>Cost (USD)</td>
+<td>$0</td>
+<td>~$0.0005</td>
+<td>~$0.0005</td>
+</tr>
+<tr class="even">
+<td>Decision</td>
+<td>wrong (false negative)</td>
+<td><strong>correct</strong></td>
+<td><strong>correct</strong></td>
 </tr>
 </tbody>
 </table>
-<p>The cascade architecture captures the best of both worlds: classical computer vision handles the 95%+ of “easy” cases in milliseconds, while GPT-4o is reserved for the rare edge cases where certainty matters most.</p>
-</section>
-<section id="key-technologies" class="level2">
-<h2 class="anchored" data-anchor-id="key-technologies">Key Technologies</h2>
+<p>* L3 wall-clock includes a cold-start on Azure Container Apps; warm L3 latency runs ~2 s. The <a href="./evaluation.html">Evaluation page</a> reports p50/p95 over the full 60-image run.</p>
+<p>The pattern across all 60 evaluation frames matches what these three illustrate:</p>
 <ul>
-<li><strong>Model Training:</strong> Azure Machine Learning (AML) on <code>Standard_NC6s_v3</code> compute</li>
-<li><strong>Inference:</strong> Azure Container Apps (ACA) with NVIDIA T4 GPU, scale-to-zero via KEDA</li>
-<li><strong>Event Bus:</strong> Azure Service Bus (decoupled queue between cascade layers)</li>
-<li><strong>Storage:</strong> Azure Data Lake Storage Gen2</li>
-<li><strong>MLLM:</strong> Azure OpenAI <code>gpt-4o</code> with Pydantic-enforced structured JSON output</li>
-<li><strong>Package Manager:</strong> <code>uv</code> (fast, reproducible Python dependency management)</li>
-<li><strong>Website:</strong> Quarto (this site — Mermaid.js diagrams, executable Python cells)</li>
+<li>The L1 short-circuit is <strong>fast and cheap</strong> but its accuracy is bounded by what the AE has seen as “normal”. On NEU, that ceiling is low.</li>
+<li>L2 is <strong>currently a no-op</strong> that exists structurally — its outputs are sane only on COCO classes. Phase J fixes this with proper bbox training.</li>
+<li>L3 is <strong>slow and expensive</strong> but, on every frame the router actually commits to it, correct (27/27 in the v1 run).</li>
 </ul>
-</section>
-<section id="project-structure" class="level2">
-<h2 class="anchored" data-anchor-id="project-structure">Project Structure</h2>
-<pre><code>cascade-defect/
-├── .agents/skills/          # Copilot domain-knowledge files
-├── .claude/plans/           # Project implementation plan
-├── .devcontainer/           # VS Code / Codespaces container config
-├── .pre-commit-config.yaml  # nbstripout + ruff hooks
-├── docs/                    # This Quarto website
-├── src/cascade_defect/      # Python source package
-│   ├── data/                # Dataset split utilities
-│   ├── layer1_autoencoder/  # Conv AE model, training, FastAPI app
-│   ├── layer2_yolo/         # YOLOv8 inference FastAPI app
-│   └── layer3_gpt4o/        # GPT-4o oracle FastAPI app
-├── tests/                   # pytest unit tests
-└── pyproject.toml           # uv-managed project config</code></pre>
-</section>
-<section id="quick-links" class="level2">
-<h2 class="anchored" data-anchor-id="quick-links">Quick Links</h2>
-<ul>
-<li><a href="./architecture.html">Architecture →</a> — Detailed system design with Mermaid diagrams</li>
-<li><a href="./data-strategy.html">Data Strategy →</a> — Dataset splits and pseudo-labelling pipeline</li>
-<li><a href="./evaluation.html">Evaluation →</a> — Latency, cost, and accuracy benchmarks</li>
-</ul>
+<p>The cost-savings story (55%, 100% accuracy on classified frames) survives the dataset critique because it is a property of the <em>router</em>, not of the v1 dataset. The Oracle is invoked only when needed; that’s the architectural win. Phase J should push the L1 drop rate from 53% to 80%+, which is where the cost ratio gets really interesting.</p>
 
 
 </section>
@@ -920,6 +1001,38 @@ Figure&nbsp;1: High-level cascade pipeline overview
     </div>
   </div>
 </footer>
+<script>var lightboxQuarto = GLightbox({"closeEffect":"zoom","descPosition":"bottom","loop":false,"openEffect":"zoom","selector":".lightbox"});
+(function() {
+  let previousOnload = window.onload;
+  window.onload = () => {
+    if (previousOnload) {
+      previousOnload();
+    }
+    lightboxQuarto.on('slide_before_load', (data) => {
+      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+      const href = trigger.getAttribute('href');
+      if (href !== null) {
+        const imgEl = window.document.querySelector(`a[href="${href}"] img`);
+        if (imgEl !== null) {
+          const srcAttr = imgEl.getAttribute("src");
+          if (srcAttr && srcAttr.startsWith("data:")) {
+            slideConfig.href = srcAttr;
+          }
+        }
+      } 
+    });
+  
+    lightboxQuarto.on('slide_after_load', (data) => {
+      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(slideNode);
+      }
+    });
+  
+  };
+  
+})();
+          </script>
 
 
 

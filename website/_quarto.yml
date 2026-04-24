@@ -21,6 +21,8 @@ website:
         text: Architecture
       - href: data-strategy.qmd
         text: Data Strategy
+      - href: inferences.qmd
+        text: Inferences
       - href: evaluation.qmd
         text: Evaluation
     right:

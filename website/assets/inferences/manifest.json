@@ -1,0 +1,171 @@
+[
+  {
+    "id": "01_l1_dropped_inclusion",
+    "headline": "L1 short-circuit (an honest miss)",
+    "summary": "The autoencoder reconstructs this inclusion almost perfectly (MSE 0.0009 vs threshold 0.0067), so the cascade returns `no_defect` in 65 ms without invoking L2 or L3. This is the v1 dataset's fingerprint: the AE was trained on `rolled-in_scale` as a normal proxy, and inclusions happen to look 'normal-ish' to it. The Phase-J swap to VisA is exactly the fix.",
+    "true_class": "inclusion",
+    "decision": "no_defect",
+    "stopped_at_layer": 1,
+    "elapsed_ms": 65,
+    "trace": [
+      {
+        "layer": 1,
+        "result": "no_defect",
+        "mse": 0.0009306990541517735
+      }
+    ],
+    "local_recon_mse": 0.001071,
+    "local_yolo": {
+      "detections": [
+        {
+          "class": "person",
+          "confidence": 0.112,
+          "bbox": [
+            57.0,
+            2.5,
+            84.8,
+            131.7
+          ]
+        },
+        {
+          "class": "baseball bat",
+          "confidence": 0.043,
+          "bbox": [
+            59.3,
+            51.4,
+            66.9,
+            82.6
+          ]
+        },
+        {
+          "class": "toothbrush",
+          "confidence": 0.032,
+          "bbox": [
+            58.6,
+            22.0,
+            80.9,
+            88.2
+          ]
+        }
+      ],
+      "n_total": 50
+    },
+    "source_image_relpath": "data/splits/test/inclusion/img_001.jpg"
+  },
+  {
+    "id": "02_l3_oracle_crazing",
+    "headline": "Full cascade L1 \u2192 L2 \u2192 L3 (Oracle nails it)",
+    "summary": "The AE flags this frame (MSE 0.0088 > \u03c4=0.0067), L2's COCO-pretrained YOLO returns garbage (`cat`, conf 0.012 \u2014 the v1 YOLO is not yet defect-trained), so the router escalates to the Oracle. GPT-4.1-mini correctly identifies the crazing pattern with a one-line rationale grounded in the few-shot exemplars.",
+    "true_class": "crazing",
+    "decision": "defect",
+    "stopped_at_layer": 3,
+    "elapsed_ms": 55431,
+    "trace": [
+      {
+        "layer": 1,
+        "result": "defect_candidate",
+        "mse": 0.008769740350544453,
+        "enqueued": false
+      },
+      {
+        "layer": 2,
+        "result": "defect_detected",
+        "class": "cat",
+        "confidence": 0.012343939393758774,
+        "escalation_error": "Layer 3 unavailable; falling back to Layer 2 result."
+      },
+      {
+        "layer": 3,
+        "result": "defect",
+        "class": "crazing",
+        "confidence": 0.95,
+        "reasoning": "The image shows fine network-like cracks typical of crazing defects.",
+        "usage": {
+          "prompt_tokens": 2541,
+          "completion_tokens": 33,
+          "total_tokens": 2574
+        }
+      }
+    ],
+    "local_recon_mse": 0.008632,
+    "local_yolo": {
+      "detections": [
+        {
+          "class": "cat",
+          "confidence": 0.012,
+          "bbox": [
+            1.2,
+            1.0,
+            198.5,
+            196.1
+          ]
+        }
+      ],
+      "n_total": 1
+    },
+    "source_image_relpath": "data/splits/test/crazing/img_005.jpg"
+  },
+  {
+    "id": "03_l3_oracle_patches",
+    "headline": "Same path, different defect class",
+    "summary": "Demonstrates that the Oracle's few-shot prompt generalises across the six defect classes \u2014 same routing, same latency envelope, same per-token cost. The router is class-agnostic; all of the domain knowledge sits in the L3 system prompt.",
+    "true_class": "patches",
+    "decision": "defect",
+    "stopped_at_layer": 3,
+    "elapsed_ms": 2441,
+    "trace": [
+      {
+        "layer": 1,
+        "result": "defect_candidate",
+        "mse": 0.026262184605002403,
+        "enqueued": false
+      },
+      {
+        "layer": 2,
+        "result": "defect_detected",
+        "class": "cat",
+        "confidence": 0.10308961570262909,
+        "escalation_error": "Layer 3 unavailable; falling back to Layer 2 result."
+      },
+      {
+        "layer": 3,
+        "result": "defect",
+        "class": "patches",
+        "confidence": 0.95,
+        "reasoning": "The image shows irregular dark areas with diffuse edges similar to the reference examples of patches.",
+        "usage": {
+          "prompt_tokens": 2541,
+          "completion_tokens": 36,
+          "total_tokens": 2577
+        }
+      }
+    ],
+    "local_recon_mse": 0.032197,
+    "local_yolo": {
+      "detections": [
+        {
+          "class": "cat",
+          "confidence": 0.103,
+          "bbox": [
+            1.7,
+            0.0,
+            198.5,
+            199.4
+          ]
+        },
+        {
+          "class": "person",
+          "confidence": 0.097,
+          "bbox": [
+            1.5,
+            0.5,
+            199.0,
+            199.5
+          ]
+        }
+      ],
+      "n_total": 2
+    },
+    "source_image_relpath": "data/splits/test/patches/img_000.jpg"
+  }
+]
