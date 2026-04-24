@@ -28,11 +28,13 @@ coverage.xml
 .ipynb_checkpoints/
 *.ipynb~
 
-# Quarto build output
-docs/_site/
-docs/.quarto/
-docs/.jupyter_cache/
-docs/_freeze/
+# Quarto
+# Note: `docs/` is the publish target for GitHub Pages and IS committed.
+# Source .qmd files live in `website/`; only its build caches are ignored.
+website/.quarto/
+website/_freeze/
+website/.jupyter_cache/
+website/_site/
 
 # Azure / secrets
 .env

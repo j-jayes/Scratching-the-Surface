@@ -18,6 +18,7 @@ The foundation of this project is the **NEU Metal Surface Defects Database** —
 
 ### Defect Classes
 
+::: {.column-page}
 ```{mermaid}
 %%| label: fig-classes
 %%| fig-cap: "NEU dataset defect class taxonomy"
@@ -37,13 +38,14 @@ flowchart TD
     ROOT --> C5
     ROOT --> C6
 ```
-
+:::
 ---
 
 ## The Three-Way Split
 
 We simulate a real-world factory scenario where only a tiny fraction of images are manually labelled.
 
+::: {.column-page}
 ```{mermaid}
 %%| label: fig-split
 %%| fig-cap: "Dataset split strategy"
@@ -76,7 +78,7 @@ flowchart LR
     style UNLABELLED fill:#fef9c3,stroke:#ca8a04
     style TEST fill:#fee2e2,stroke:#dc2626
 ```
-
+:::
 ### Why Pseudo-Labels?
 
 This split simulates the core value proposition: **you can train a high-quality detection model with almost no manual labelling effort**, by using a powerful MLLM to annotate the unlabelled pool. The 360-image test set then measures how well this pseudo-labelled model compares to one trained on human annotations.
@@ -85,6 +87,7 @@ This split simulates the core value proposition: **you can train a high-quality 
 
 ## GPT-4o Annotation Pipeline
 
+::: {.column-page}
 ```{mermaid}
 %%| label: fig-annotation
 %%| fig-cap: "Offline pseudo-labelling pipeline"
@@ -103,7 +106,7 @@ sequenceDiagram
     end
     ANNOT->>STORE: Write final pseudo_labels.json
 ```
-
+:::
 **Cost estimate for annotation run:**
 
 | Item | Value |
@@ -124,6 +127,7 @@ The annotation run is a **one-time offline cost**. Once `pseudo_labels.json` is 
 
 ## Data Engineering on Azure
 
+::: {.column-page}
 ```{mermaid}
 %%| label: fig-data-pipeline
 %%| fig-cap: "End-to-end data pipeline on Azure"
@@ -152,7 +156,7 @@ flowchart TB
     SP --> DS
     DS --> JOB
 ```
-
+:::
 ### Commands
 
 ```bash

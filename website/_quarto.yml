@@ -1,6 +1,11 @@
 project:
   type: website
-  output-dir: _site
+  # Render directly into the repo's `docs/` folder so GitHub Pages
+  # can serve the static site from the `main` branch (Settings ->
+  # Pages -> Source: `main` / `/docs`).
+  output-dir: ../docs
+  resources:
+    - .nojekyll
 
 website:
   title: "Project Cascade Defect"
@@ -48,4 +53,4 @@ format:
 
 execute:
   freeze: auto
-  cache: true
+  cache: false

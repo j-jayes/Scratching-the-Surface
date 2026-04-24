@@ -14,6 +14,7 @@ format:
 
 Instead of running every factory camera frame through an expensive Multimodal Large Language Model (MLLM), we route frames through a three-layer **Cascade Architecture** — where most frames are handled cheaply and quickly, and only ambiguous edge-cases escalate to GPT-4o.
 
+::: {.column-page}
 ```{mermaid}
 %%| label: fig-overview
 %%| fig-cap: "High-level cascade pipeline overview"
@@ -50,7 +51,7 @@ flowchart LR
     style L2 fill:#dcfce7,stroke:#22c55e
     style L3 fill:#fef9c3,stroke:#eab308
 ```
-
+:::
 ## Why a Cascade?
 
 | Approach | Cost per frame | Latency | Accuracy |
