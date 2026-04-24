@@ -122,3 +122,125 @@
 | GPT-4o chatty / non-JSON output | Use `response_format={"type":"json_object"}` + Pydantic |
 | Notebook outputs with secrets committed | `nbstripout` pre-commit hook |
 | West Europe A100 unavailable | Use `Consumption-GPU-NC8as-T4` (T4 supported) |
+
+
+---
+
+## Build Log — what actually happened (Phases A–H, completed)
+
+The original Phases 1–7 above were the *aspirational* spec. The build proceeded through a slightly different lettered sequence (A–H) that traded the AML training cluster for in-process CPU training and treated Phase I (CI/CD) as deferred. What follows is the honest record of what was built and what it produced.
+
+### Phase A — Dev hygiene ✅
+- `uv` project, `pre-commit` (ruff + nbstripout), `.devcontainer`, `pyproject.toml` with CPU-only torch via `[[tool.uv.index]]`.
+
+### Phase B — Azure environment probe ✅
+- Confirmed subscription, region (West Europe), AOAI quota for `gpt-4.1-mini` (used in place of `gpt-4o` — same Vision API surface, ~6× cheaper).
+
+### Phase C — Bicep IaC ✅
+- `infra/main.bicep` + modules: `acr`, `aca-env`, `log-analytics`, `openai`, `servicebus`, `storage`, `budget`.
+- `infra/apps.bicep` provisions four ACA apps: `cascade-l1-ae`, `cascade-l2-yolo`, `cascade-l3-oracle`, `cascade-router`.
+- `mseThreshold` parameter wired through to L1 env var so retuning never requires a rebuild.
+
+### Phase D — Real data ingest ✅
+- Kaggle classic credentials authenticated, but `kaushal2896/neu-metal-surface-defects-data` returns 403 (terms-of-use unaccepted on the Kaggle web UI).
+- Pivoted to HuggingFace mirror `newguyme/neu_cls` — public, CC-permissive, parquet-encoded.
+- `download_neu_from_hf()` in `src/cascade_defect/data/ingest.py` decodes parquet via pyarrow → 1,800 real images on disk.
+- Stratified split: **18 seed / 1,422 unlabelled / 360 test**.
+
+### Phase E — Pseudo-labelling ✅
+- `src/cascade_defect/layer3_gpt4o/annotate.py` calls AOAI `gpt-4.1-mini` with the 18 seed images as a few-shot prompt + a Pydantic `DefectPrediction` schema enforced via structured outputs.
+- Output: `data/processed/pseudo_labels.jsonl`.
+
+### Phase F — Model training ✅
+- **Autoencoder**: `train.py` with `--normal-class` arg. First attempt trained on all 1,422 unlabelled (all defective) → MSE distribution flat → cascade short-circuited 100% of frames. Retrained on `rolled-in_scale` only (237 imgs, 8 epochs CPU). Threshold 0.0067 derived from same-class held-out test-set MSE. Per-class sanity in `scripts/ae_sanity.py`: `rolled-in_scale` 0.003, `patches` 0.028, `pitted_surface` 0.043 — clean separation.
+- **YOLOv8n**: trained on pseudo-labels, weights at `models/yolo/best.pt`.
+
+### Phase G — Containers + ACA deploy ✅
+- Five Dockerfiles: `base.Dockerfile` + four service images (`router`, `layer1`, `layer2`, `layer3`).
+- Bicep first-deploy hit `ContainerAppInvalidImageFormat` — fixed by adding `acrLoginServer` parameter.
+- Forced new revisions via `--revision-suffix` per push.
+- Removed self-escalation in Layer 2 — the router is the single orchestrator.
+- **Live router**: `https://cascade-router.orangebush-bb39ddbf.westeurope.azurecontainerapps.io`.
+- End-to-end smoke: `data/splits/test/scratches/img_000.jpg` → AE → YOLO → Oracle returns `scratches` 0.85 in 3.9 s. Full trace returned in response.
+
+### Phase H — Evaluation + Quarto site ✅
+- `src/cascade_defect/eval/run_cascade.py` — stratified 60-image subset (10/class) against live router.
+- `src/cascade_defect/eval/run_oracle_only.py` — Oracle-only baseline against the same 60.
+- `src/cascade_defect/eval/metrics.py` — rollup → `reports/metrics.json` with **dual accuracy** (overall vs. classified-only — the key honest framing).
+- **Real-data results** (10 imgs/class × 6 classes = 60 imgs):
+
+  | Metric | Cascade | Oracle-only |
+  |---|---|---|
+  | Cost / 100k frames | **$48** | $107 |
+  | Overall accuracy | 0.45 | 0.967 |
+  | Accuracy on classified frames | **1.00** (27/27) | 0.967 |
+  | L1 drop rate | 53% | n/a |
+  | p50 latency | 195 ms | 2,147 ms |
+  | Run cost (60 imgs) | $0.029 | $0.064 |
+
+- **Quarto site** rendered to `docs/_site/` — 4 pages (`index`, `architecture`, `data-strategy`, `evaluation`). Required `jupyter-cache`, `pandas`, `matplotlib`, `ipykernel`; named kernel `cascade-defect` registered via `uv run python -m ipykernel install --user --name cascade-defect`. `_quarto.yml` uses `cache: false` (inline expressions are incompatible with Jupyter Cache).
+
+### Phase H.1 — Reflection page ✅
+- New `docs/intro.qmd` reframes the problem honestly: NEU is a *balanced classification* benchmark, not an *anomaly detection* benchmark. The cascade plumbing is sound; the v1 dataset does not exercise the autoencoder's strengths.
+
+---
+
+## Phase J — VisA extension (the "right shape of data" demo)
+
+> **Goal:** Re-run the full v1 demonstration on a dataset whose normal:anomaly ratio actually matches the architecture, so the autoencoder's gatekeeper role becomes load-bearing rather than contrived.
+
+### Why VisA
+- 10,821 images, **9,621 normal vs 1,200 anomalous** — genuine 8:1 imbalance.
+- 12 categories, MVTec-AD-style layout (`1cls/<obj>/{train/good, test/good, test/bad, ground_truth}`).
+- CC BY 4.0 — commercial use OK.
+- Direct S3 download — no signup form (unlike MVTec AD, which is non-commercial + email-gated).
+- Pixel-level segmentation masks ship with the bad set → clean YOLO bounding-box conversion.
+
+Source: <https://github.com/amazon-science/spot-diff>
+Tarball: `https://amazon-visual-anomaly.s3.us-west-2.amazonaws.com/VisA_20220922.tar`
+
+### Tasks
+
+- [ ] **Data layer**
+  - [ ] Add `download_visa()` to `src/cascade_defect/data/ingest.py` — stream-extract the tarball into `data/raw/visa/`, validate checksums.
+  - [ ] Add `--dataset {neu,visa}` and `--visa-subset {pcb1,candle,…}` to the data CLI; default to `pcb1` (structural complexity stresses YOLO) and `candle` (texture stresses the AE) for a two-subset comparison.
+  - [ ] Update `data/split.py` so VisA's existing `train/good ∪ test/{good,bad}` partition is honoured rather than re-stratified. Seed = small sample of `test/bad` for the few-shot Oracle prompt.
+
+- [ ] **Layer 1 — Autoencoder (now genuine)**
+  - [ ] Retrain on `train/good` *only* (per VisA's intended split). For `pcb1` that is ~904 normal images — about 4× the contrived NEU rolled-in-scale set.
+  - [ ] Threshold derivation: compute MSE on `test/good` (held-out normals), set `τ = mean + 3σ`. Sanity-check by also computing MSE on `test/bad` — distributions should be visibly separated.
+  - [ ] Add a `docs/_freeze`-friendly notebook (or a code cell in `evaluation.qmd`) that plots both MSE distributions and the chosen τ.
+
+- [ ] **Layer 2 — YOLO (now with real masks)**
+  - [ ] Convert VisA's per-pixel masks (`ground_truth/<defect_type>/*.png`) to YOLO bbox format via `cv2.boundingRect` on connected components.
+  - [ ] Train YOLOv8n on `test/bad` images + converted bboxes (small set — augment aggressively or use n-shot). Track in MLflow if available, else `models/yolo_visa/`.
+
+- [ ] **Layer 3 — Oracle few-shot prompt**
+  - [ ] Rebuild the few-shot block from VisA `test/bad` examples (one per defect subtype). For PCB1 that is 4 classes: `bent`, `broken`, `melt`, `missing`.
+  - [ ] Keep the same Pydantic schema; add `subtype` enum.
+
+- [ ] **Eval — honest TP/FP/TN/FN**
+  - [ ] New `eval/run_cascade_visa.py` — runs the full cascade against `test/good ∪ test/bad`. With abundant negatives, **dropping a normal frame at L1 is now correct**.
+  - [ ] Report: precision, recall, F1, plus the cost/latency table from v1. Expect L1 drop rate to climb to 80–90% and classified-frame accuracy to remain ≈1.0 — that combination is the point of the architecture.
+  - [ ] Add a third row to the v1 evaluation table comparing v1 (NEU) vs v2 (VisA) cascades side-by-side.
+
+- [ ] **Docs**
+  - [ ] Extend `data-strategy.qmd` with a "Choosing the right dataset" section.
+  - [ ] Extend `evaluation.qmd` with the v2 numbers.
+  - [ ] Update `intro.qmd` to mark Phase J as completed (replace "specced" with measured numbers).
+
+### Acceptance criteria for Phase J
+- Live cascade returns correct labels on a hold-out drawn from `test/{good,bad}` of at least one VisA subset.
+- Classified-frame accuracy ≥ 0.95.
+- L1 drop rate ≥ 0.75 on a normal-heavy sample.
+- Cost-per-100k-frames advantage ≥ 3× over Oracle-only baseline (target: 5–10×, given the higher drop rate).
+
+---
+
+## Phase I — CI/CD (deferred)
+
+Still pending; lower priority than Phase J because the build pipeline currently runs locally with `make` targets and pushes to ACR work hands-on. To revisit after Phase J data results are in.
+
+- [ ] Federated identity (OIDC) from GitHub Actions → Azure
+- [ ] `ci.yml`: ruff, pytest, `quarto render docs/` smoke-build
+- [ ] `deploy.yml`: build & push the four service images on `main`, kick off `az containerapp update --revision-suffix $(git rev-parse --short HEAD)`

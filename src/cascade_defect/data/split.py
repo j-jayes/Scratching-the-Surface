@@ -9,9 +9,11 @@ Split strategy
 
 from __future__ import annotations
 
+import json
 import logging
 import random
 import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -99,6 +101,28 @@ def split_dataset(
         counts["unlabelled"],
         counts["test"],
     )
+
+    # Persist a manifest describing every split → useful for reproducibility and
+    # for the GPT-4o annotator (it needs class labels for the seed images only).
+    manifest = {
+        "created_utc": datetime.now(timezone.utc).isoformat(),
+        "random_seed": random_seed,
+        "seed_per_class": seed_per_class,
+        "test_fraction": test_fraction,
+        "counts": counts,
+        "splits": {
+            split_name: [
+                {"path": (output_dir / split_name / cls / p.name).as_posix(), "class": cls}
+                for p, cls in items
+            ]
+            for split_name, items in splits.items()
+        },
+    }
+    manifest_path = output_dir / "manifest.json"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(json.dumps(manifest, indent=2))
+    logger.info("Manifest written to %s", manifest_path)
+
     return counts
 
 
@@ -107,7 +131,7 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     parser = argparse.ArgumentParser(description="Split NEU dataset")
-    parser.add_argument("--raw-dir", type=Path, required=True, help="Path to raw NEU dataset root")
+    parser.add_argument("--raw-dir", type=Path, default=Path("data/raw/neu"), help="Path to raw NEU dataset root")
     parser.add_argument("--output-dir", type=Path, default=Path("data/splits"), help="Output directory")
     args = parser.parse_args()
 

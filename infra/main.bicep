@@ -32,6 +32,12 @@ param budgetAlertEmails array = []
 @description('Whether to add the serverless T4 GPU workload profile. Set false to disable if quota fails.')
 param enableGpuWorkloadProfile bool = true
 
+@description('Whether to deploy a new Azure OpenAI resource + GPT-4o deployment. Leave false if reusing an existing AOAI resource (set AOAI_ENDPOINT in .env instead).')
+param deployOpenAi bool = false
+
+@description('Tokens-per-minute capacity for the Oracle deployment (1 unit = 1k TPM). Ignored when deployOpenAi is false.')
+param oracleCapacity int = 10
+
 // ─── Naming ──────────────────────────────────────────────────────────────────
 var resourceToken = uniqueString(subscription().subscriptionId, resourceGroup().id, projectName, environmentName)
 var namePrefix = '${projectName}-${environmentName}'
@@ -40,6 +46,7 @@ var acrName = toLower('${projectName}${environmentName}acr${take(resourceToken, 
 var serviceBusNamespaceName = '${namePrefix}-sb-${take(resourceToken, 6)}'
 var logAnalyticsName = '${namePrefix}-logs'
 var acaEnvironmentName = '${namePrefix}-aca-env'
+var openAiAccountName = '${namePrefix}-aoai-${take(resourceToken, 6)}'
 
 // Tags applied to every resource for cost reporting + cleanup.
 var commonTags = {
@@ -106,6 +113,16 @@ module budget 'modules/budget.bicep' = if (!empty(budgetAlertEmails)) {
   }
 }
 
+module openai 'modules/openai.bicep' = if (deployOpenAi) {
+  name: 'openai-deploy'
+  params: {
+    accountName: openAiAccountName
+    location: location
+    oracleCapacity: oracleCapacity
+    tags: commonTags
+  }
+}
+
 // ─── Outputs (consumed by Makefile to populate .env) ─────────────────────────
 output storageAccountName string = storage.outputs.accountName
 output storageBlobEndpoint string = storage.outputs.blobEndpoint
@@ -116,3 +133,5 @@ output serviceBusQueueName string = servicebus.outputs.queueName
 output acaEnvironmentName string = acaEnv.outputs.name
 output acaEnvironmentId string = acaEnv.outputs.id
 output logAnalyticsWorkspaceId string = logs.outputs.id
+output openAiEndpoint string = deployOpenAi ? openai!.outputs.endpoint : ''
+output openAiDeploymentName string = deployOpenAi ? openai!.outputs.deploymentName : ''

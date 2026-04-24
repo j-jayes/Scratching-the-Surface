@@ -88,13 +88,38 @@ infra-down: az-login ## Delete the resource group (irreversible).
 	  else echo "Aborted."; fi
 
 # =============================================================================
-# Container images (placeholder targets, implemented in Phase G)
+# Container images (ACR remote build — no local Docker required)
 # =============================================================================
-images-build: ## Build all inference images via ACR build (Phase G).
-	@echo "Not yet implemented (Phase G)."
+IMAGE_TAG ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "dev")
 
-images-push: images-build ## Push images to ACR (Phase G).
-	@echo "Not yet implemented (Phase G)."
+images-build: az-login ## Build all images in ACR (base + 4 layer images).
+	az acr build --registry $(ACR_NAME) --image cascade-base:$(IMAGE_TAG)   --image cascade-base:latest   --file docker/base.Dockerfile   .
+	az acr build --registry $(ACR_NAME) --image cascade-layer1:$(IMAGE_TAG) --image cascade-layer1:latest --file docker/layer1.Dockerfile --build-arg REGISTRY=$(ACR_LOGIN_SERVER) --build-arg BASE_TAG=$(IMAGE_TAG) .
+	az acr build --registry $(ACR_NAME) --image cascade-layer2:$(IMAGE_TAG) --image cascade-layer2:latest --file docker/layer2.Dockerfile --build-arg REGISTRY=$(ACR_LOGIN_SERVER) --build-arg BASE_TAG=$(IMAGE_TAG) .
+	az acr build --registry $(ACR_NAME) --image cascade-layer3:$(IMAGE_TAG) --image cascade-layer3:latest --file docker/layer3.Dockerfile --build-arg REGISTRY=$(ACR_LOGIN_SERVER) --build-arg BASE_TAG=$(IMAGE_TAG) .
+	az acr build --registry $(ACR_NAME) --image cascade-router:$(IMAGE_TAG) --image cascade-router:latest --file docker/router.Dockerfile --build-arg REGISTRY=$(ACR_LOGIN_SERVER) --build-arg BASE_TAG=$(IMAGE_TAG) .
+
+images-push: images-build ## Alias for images-build (ACR builds push automatically).
+	@echo "ACR build pushes images automatically — nothing more to do."
+
+apps-deploy: az-login ## Deploy the four Container Apps (router + 3 layers).
+	@if [ -z "$$AOAI_API_KEY" ]; then echo "AOAI_API_KEY missing in .env"; exit 1; fi
+	az deployment group create \
+	  --name "cascade-apps-$$(date +%Y%m%d-%H%M%S)" \
+	  --resource-group $(RESOURCE_GROUP) \
+	  --template-file infra/apps.bicep \
+	  --parameters \
+	    environmentName=$(ACA_ENVIRONMENT) \
+	    acrName=$(ACR_NAME) \
+	    storageAccountName=$(BLOB_ACCOUNT) \
+	    aoaiEndpoint=$(AOAI_ENDPOINT) \
+	    aoaiApiKey=$(AOAI_API_KEY) \
+	    aoaiDeployment=$(AOAI_DEPLOYMENT) \
+	    imageTag=$(IMAGE_TAG) \
+	  -o table
+
+apps-show: az-login ## Print router URL.
+	@az containerapp show -n cascade-router -g $(RESOURCE_GROUP) --query "properties.configuration.ingress.fqdn" -o tsv
 
 # =============================================================================
 # Data
@@ -108,4 +133,4 @@ data-upload: ## Upload local data/raw to Blob (Phase D).
 data-split: ## Generate train/val/test splits (Phase D).
 	uv run python -m cascade_defect.data.split
 
-.PHONY: help sync test lint fmt az-login infra-rg infra-plan infra-up infra-show infra-down images-build images-push data-fetch data-upload data-split
+.PHONY: help sync test lint fmt az-login infra-rg infra-plan infra-up infra-show infra-down images-build images-push apps-deploy apps-show data-fetch data-upload data-split

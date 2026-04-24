@@ -1,0 +1,33 @@
+# Keep build context small and reproducible.
+.git/
+.venv/
+.devcontainer/
+.github/
+.claude/
+.agents/
+docs/
+notebooks/
+tests/
+infra/
+scripts/
+
+# Heavy data — only the few-shot seed (small) is allowed for layer3.
+data/raw/
+data/processed/
+data/splits/unlabelled/
+data/splits/test/
+
+# Cache + tooling
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# OS / editor
+.DS_Store
+.vscode/
+Thumbs.db

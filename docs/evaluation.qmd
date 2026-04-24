@@ -1,228 +1,242 @@
 ---
 title: "Evaluation"
-subtitle: "Latency, cost, and accuracy benchmarks for the cascade pipeline"
+subtitle: "Measured latency, cost, and accuracy of the deployed cascade on real NEU data"
 date: today
+jupyter: cascade-defect
 execute:
-  echo: true
+  echo: false
+  warning: false
+  cache: false
 ---
-
-## Evaluation Framework
-
-The cascade architecture is evaluated across three dimensions:
-
-1. **System Latency** — time-to-decision at each cascade layer
-2. **Cost Economics** — theoretical cost comparison vs. pure MLLM
-3. **Model Performance** — pseudo-label vs. ground-truth trained YOLOv8
-
----
-
-## 1. System Latency
-
-Latency is measured separately per cascade layer, because each represents a distinct cost / speed trade-off.
-
-```{mermaid}
-%%| label: fig-latency
-%%| fig-cap: "Decision latency by cascade path"
-flowchart LR
-    INPUT(["Frame\ninput"])
-
-    L1_OK["Layer 1 only\n~5 ms\n(95% of frames)"]
-    L1L2_OK["Layer 1 + 2\n~20 ms\n(4% of frames)"]
-    L1L2L3["Layer 1 + 2 + 3\n~3000 ms\n(1% of frames)"]
-
-    INPUT --> L1_OK
-    INPUT --> L1L2_OK
-    INPUT --> L1L2L3
-
-    style L1_OK fill:#dcfce7
-    style L1L2_OK fill:#fef9c3
-    style L1L2L3 fill:#fee2e2
-```
-
-### Expected Benchmark Results
-
-| Path | Average Latency | % of Frames | Notes |
-|------|------------|-------------|-------|
-| Layer 1 only (no defect) | ~5 ms | ~70% | MSE < τ |
-| Layer 1 → Layer 2 (detected) | ~20 ms | ~25% | conf ≥ 85% |
-| Layer 1 → Layer 2 → Layer 3 | ~3,000 ms | ~5% | conf < 85% |
-| **Weighted average** | **~170 ms** | 100% | |
-
-::: {.callout-important}
-## Cold-Start Penalty
-Scaling Layer 2 from zero replicas takes **30–90 seconds** when the Container App has been idle. This is measured and reported separately as `cold_start_latency_s` and is **not** included in the inference latency figures above. In production, use `--min-replicas 1` during active factory shifts.
-:::
-
----
-
-## 2. Cost Economics
-
-We compare two architectures for processing **100,000 frames**:
-
-| Architecture | Description |
-|---|---|
-| **Pure MLLM** | Every frame sent to GPT-4o |
-| **Cascade** | Layer 1 (AE) + Layer 2 (YOLOv8) + Layer 3 (GPT-4o for ~5%) |
 
 ```{python}
-#| label: fig-cost-comparison
-#| fig-cap: "Cost comparison: Pure MLLM vs. Cascade (100,000 frames)"
-#| echo: true
+#| label: load-metrics
+import json
+from pathlib import Path
 
-import matplotlib.pyplot as plt
-import numpy as np
-
-# ── Parameters ──────────────────────────────────────────────────────────────
-N_FRAMES = 100_000
-
-# GPT-4o pricing (Azure OpenAI, as of mid-2024)
-GPT4O_INPUT_PER_1M  = 2.50   # USD per 1M input tokens
-GPT4O_OUTPUT_PER_1M = 10.00  # USD per 1M output tokens
-AVG_INPUT_TOKENS    = 2_500  # per request (few-shot + image)
-AVG_OUTPUT_TOKENS   = 50     # per request
-
-# T4 GPU pricing on ACA (approx, per vCPU-second)
-T4_VCPU_SEC = 0.000024  # USD per vCPU-second
-YOLO_LATENCY_S = 0.015  # seconds per frame on T4
-YOLO_VCPUS = 8
-
-# ── Cost calculations ─────────────────────────────────────────────────────
-def gpt4o_cost(n):
-    input_cost  = (n * AVG_INPUT_TOKENS  / 1_000_000) * GPT4O_INPUT_PER_1M
-    output_cost = (n * AVG_OUTPUT_TOKENS / 1_000_000) * GPT4O_OUTPUT_PER_1M
-    return input_cost + output_cost
-
-def yolo_cost(n):
-    return n * YOLO_LATENCY_S * YOLO_VCPUS * T4_VCPU_SEC
-
-# Pure MLLM: every frame goes to GPT-4o
-pure_mllm_cost = gpt4o_cost(N_FRAMES)
-
-# Cascade: ~5% of frames reach GPT-4o; all flagged frames (~30%) go through YOLOv8
-cascade_flagged_fraction = 0.30
-cascade_escalation_fraction = 0.05
-cascade_yolo_cost = yolo_cost(N_FRAMES * cascade_flagged_fraction)
-cascade_gpt4o_cost = gpt4o_cost(N_FRAMES * cascade_escalation_fraction)
-cascade_total = cascade_yolo_cost + cascade_gpt4o_cost
-
-# ── Plot ──────────────────────────────────────────────────────────────────
-fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-
-# Bar chart comparison
-architectures = ["Pure MLLM\n(GPT-4o only)", "Cascade\n(this project)"]
-costs = [pure_mllm_cost, cascade_total]
-colours = ["#ef4444", "#22c55e"]
-
-axes[0].bar(architectures, costs, color=colours, edgecolor="white", linewidth=1.5)
-axes[0].set_ylabel("Total Cost (USD)")
-axes[0].set_title(f"Cost for {N_FRAMES:,} frames")
-for i, (arch, cost) in enumerate(zip(architectures, costs)):
-    axes[0].text(i, cost + 5, f"${cost:.0f}", ha="center", fontweight="bold")
-
-# Cascade cost breakdown (stacked bar)
-cascade_components = ["YOLOv8\n(T4 GPU)", "GPT-4o\n(5% escalation)"]
-cascade_values = [cascade_yolo_cost, cascade_gpt4o_cost]
-bar_colours = ["#3b82f6", "#a855f7"]
-
-axes[1].bar(cascade_components, cascade_values, color=bar_colours, edgecolor="white", linewidth=1.5)
-axes[1].set_ylabel("Cost (USD)")
-axes[1].set_title("Cascade Cost Breakdown")
-for i, (comp, val) in enumerate(zip(cascade_components, cascade_values)):
-    axes[1].text(i, val + 0.5, f"${val:.2f}", ha="center", fontweight="bold")
-
-plt.tight_layout()
-plt.savefig("assets/cost_comparison.png", dpi=150, bbox_inches="tight")
-plt.show()
-
-reduction = (1 - cascade_total / pure_mllm_cost) * 100
-print(f"\nPure MLLM cost:  ${pure_mllm_cost:,.2f}")
-print(f"Cascade cost:    ${cascade_total:,.2f}")
-print(f"Cost reduction:  {reduction:.1f}%")
+METRICS = json.loads(Path("../reports/metrics.json").read_text(encoding="utf-8"))
+CASCADE = METRICS["cascade"]
+ORACLE = METRICS["oracle_only"]
+PRICING = METRICS["pricing"]
+SAVINGS = METRICS.get("cost_savings_pct", 0.0)
 ```
 
----
+## What was measured
 
-## 3. Model Performance
+A **stratified 60-image subset** of the held-out NEU-CLS golden test set
+(10 images per class, drawn from the 360-image test split) was sent through
+two architectures running on Azure:
 
-We train **two** YOLOv8n models and compare them on the Golden Test Set:
+- **Cascade** — `POST /predict` on the deployed Container Apps router
+  (Layer 1 AE → Layer 2 YOLOv8n → Layer 3 Azure OpenAI).
+- **Pure Oracle baseline** — every image sent directly to
+  `gpt-4.1-mini` with the same few-shot prompt the cascade uses.
 
-| Model | Training Data | Purpose |
-|-------|--------------|---------|
-| `yolo_pseudo_v1` | Pseudo-labels from GPT-4o (~1,420 images) | Production model |
-| `yolo_gt_v1` | Human ground-truth labels (~1,420 images) | Baseline / upper bound |
+The dataset is the **real NEU surface defect dataset** (1,800 200×200 images,
+6 classes), pulled from the public HuggingFace mirror
+[`newguyme/neu_cls`](https://huggingface.co/datasets/newguyme/neu_cls)
+and split 18 seed / 1,422 unlabelled / 360 test by
+[`split.py`](../src/cascade_defect/data/split.py).
 
-```{mermaid}
-%%| label: fig-model-comparison
-%%| fig-cap: "Model training comparison methodology"
-flowchart LR
-    subgraph PSEUDO["Pseudo-Label Track"]
-        PL["Pseudo-labels\n(GPT-4o annotated)"]
-        M1["yolo_pseudo_v1\nYOLOv8n"]
-    end
+::: {.callout-note collapse="true"}
+## A note on the gatekeeper's training set
+NEU-CLS contains no "no-defect" class — every image is one of six defect
+types. The Layer 1 autoencoder was therefore trained on a **single class**
+(`rolled-in_scale`) and treats it as the "normal steel" reference. This is
+the closest substitute available; in production you would train on
+defect-free frames captured during a clean shift.
 
-    subgraph GT["Ground-Truth Track"]
-        GTL["Human labels\n(ground truth)"]
-        M2["yolo_gt_v1\nYOLOv8n"]
-    end
-
-    TEST["🧪 Golden Test Set\n360 images\nground-truth labels"]
-    EVAL["Evaluation\nPrecision / Recall / mAP50"]
-
-    PL --> M1
-    GTL --> M2
-    M1 --> EVAL
-    M2 --> EVAL
-    TEST --> EVAL
-
-    style PSEUDO fill:#dbeafe,stroke:#3b82f6
-    style GT fill:#dcfce7,stroke:#22c55e
-```
-
-### Expected Results (to be filled post-training)
-
-| Model | Precision | Recall | mAP50 | mAP50-95 |
-|-------|----------|--------|-------|----------|
-| `yolo_gt_v1` (human labels) | TBD | TBD | TBD | TBD |
-| `yolo_pseudo_v1` (GPT-4o labels) | TBD | TBD | TBD | TBD |
-| **Difference** | TBD | TBD | TBD | TBD |
-
-::: {.callout-note}
-## Hypothesis
-We expect `yolo_pseudo_v1` to achieve within **5 percentage points** of `yolo_gt_v1` on mAP50, demonstrating that GPT-4o pseudo-labels are a viable substitute for expensive manual annotation at this scale.
+A consequence is that `inclusion` and `rolled-in_scale` look "normal" to
+the AE — both have similarly low MSE — so the cascade short-circuits them
+at Layer 1. **In a real factory feed, that would be the correct behaviour
+on no-defect frames; here it counts against accuracy because every test
+image is a defect.** We report two accuracy numbers to make this honest.
 :::
 
----
+::: {.callout-note}
+Pricing is `gpt-4.1-mini` at \$`{python} PRICING["usd_per_1m_in"]`/1M input,
+\$`{python} PRICING["usd_per_1m_out"]`/1M output. The model was selected because
+it was the only AOAI vision-capable deployment with available TPM quota in
+West Europe at deploy time.
+:::
 
-## 4. Full Cascade System Evaluation
+## 1. Cascade routing distribution
 
-The final cascade evaluation measures the **combined system** on the 360-image Golden Test Set:
+```{python}
+#| label: fig-routing
+#| fig-cap: "Where each frame stops in the cascade"
+import matplotlib.pyplot as plt
 
-```{mermaid}
-%%| label: fig-system-eval
-%%| fig-cap: "System-level evaluation flow"
-flowchart TD
-    TEST["360 Golden Test Images\n(with ground-truth labels)"]
-    CASCADE["Run full cascade\nLayer 1 → 2 → 3"]
-    METRICS["Compute Metrics"]
-    P["Precision"]
-    R["Recall"]
-    F1["F1 Score"]
-    LATENCY["Avg Latency\nper layer path"]
-    COST["Actual API\nCost incurred"]
+stops = {k: v for k, v in CASCADE["stopped_at_layer"].items() if k != "null"}
+labels = [f"Layer {k}" for k in sorted(stops)]
+values = [stops[k] for k in sorted(stops)]
+colours = ["#22c55e", "#eab308", "#ef4444"][: len(values)]
 
-    TEST --> CASCADE --> METRICS
-    METRICS --> P
-    METRICS --> R
-    METRICS --> F1
-    METRICS --> LATENCY
-    METRICS --> COST
+fig, ax = plt.subplots(figsize=(7, 3.5))
+bars = ax.barh(labels, values, color=colours, edgecolor="white")
+for i, v in enumerate(values):
+    ax.text(v + 0.5, i, f"{v} ({v/CASCADE['n']:.0%})", va="center")
+ax.set_xlabel("Frames")
+ax.set_title(f"Stop-at-layer distribution (n={CASCADE['n']})")
+ax.invert_yaxis()
+plt.tight_layout()
+plt.show()
 ```
 
-**Target SLAs:**
+The autoencoder gatekeeper drops **`{python} f"{CASCADE['l1_drop_rate']:.0%}"`** of
+frames before they ever reach the Oracle. This is the entire point of the
+cascade — every dropped frame saves an Azure OpenAI call.
 
-| Metric | Target |
-|--------|--------|
-| Recall (defect detection) | ≥ 98% |
-| Precision | ≥ 85% |
-| Avg latency (weighted) | < 200 ms |
-| Cost per 100k frames | < $50 |
+## 2. Latency
+
+End-to-end client latency (curl → router → final JSON response) on **warm**
+Container Apps (idle replicas already up).
+
+```{python}
+#| label: tbl-latency
+import pandas as pd
+df = pd.DataFrame({
+    "Architecture": ["Cascade (router)", "Pure Oracle"],
+    "Mean (ms)":   [CASCADE["latency_ms"]["mean"], ORACLE["latency_ms"]["mean"]],
+    "p50 (ms)":    [CASCADE["latency_ms"]["p50"],  ORACLE["latency_ms"]["p50"]],
+    "p95 (ms)":    [CASCADE["latency_ms"]["p95"],  ORACLE["latency_ms"]["p95"]],
+})
+df
+```
+
+Note the **bimodal cascade latency**: the median (`{python} CASCADE['latency_ms']['p50']` ms) is
+the AE-only fast path, while the p95 (`{python} CASCADE['latency_ms']['p95']` ms) reflects
+frames that escalate all the way to the Oracle. The mean is dominated by the
+Oracle-bound frames because each one costs ~3 s.
+
+::: {.callout-warning}
+## Cold-start penalty
+The first request after `min-replicas=0` scaling pays a cold-start penalty of
+~10–30 s while the AE / YOLO / Oracle containers pull and load model
+weights. This is **excluded** from the table above — production deployments
+that need sub-second p99 should set `min-replicas≥1` during shifts.
+:::
+
+## 3. Cost
+
+```{python}
+#| label: tbl-cost
+df = pd.DataFrame({
+    "Architecture": ["Cascade", "Pure Oracle"],
+    "Tokens in":   [CASCADE["tokens_in"], ORACLE["tokens_in"]],
+    "Tokens out":  [CASCADE["tokens_out"], ORACLE["tokens_out"]],
+    "USD (60 imgs)": [CASCADE["oracle_cost_usd"], ORACLE["oracle_cost_usd"]],
+    "USD / 100k frames": [CASCADE["cost_per_100k_frames_usd"],
+                          ORACLE["cost_per_100k_frames_usd"]],
+})
+df
+```
+
+```{python}
+#| label: fig-cost
+#| fig-cap: "Cost per 100,000 frames extrapolated from the 60-image run"
+fig, ax = plt.subplots(figsize=(6, 4))
+arch = ["Cascade", "Pure Oracle"]
+vals = [CASCADE["cost_per_100k_frames_usd"], ORACLE["cost_per_100k_frames_usd"]]
+bars = ax.bar(arch, vals, color=["#22c55e", "#ef4444"], edgecolor="white")
+for b, v in zip(bars, vals):
+    ax.text(b.get_x() + b.get_width()/2, v, f"${v:,.2f}",
+            ha="center", va="bottom", fontweight="bold")
+ax.set_ylabel("USD / 100,000 frames")
+ax.set_title(f"Cascade saves {SAVINGS:.0f}% vs pure Oracle")
+plt.tight_layout()
+plt.show()
+```
+
+The cascade saves **`{python} f"{SAVINGS:.0f}%"`** even though the test set is
+100% defects — the AE drops over half of them (the ones that visually
+resemble its training class). On a real factory feed where the majority of
+frames are defect-free, savings would be substantially higher because
+**every** clean frame would be dropped at Layer 1.
+
+## 4. Accuracy — two honest numbers
+
+Because the test set has no true negatives, top-1 accuracy can be reported
+two ways:
+
+```{python}
+#| label: tbl-accuracy
+df = pd.DataFrame([
+    ("Cascade — overall (counts AE drops as wrong)", CASCADE["top1_accuracy_overall"], CASCADE["n"]),
+    ("Cascade — frames the cascade actually classified",
+     CASCADE["top1_accuracy_classified_only"], CASCADE["n_classified"]),
+    ("Pure Oracle", ORACLE["top1_accuracy"], ORACLE["n"]),
+], columns=["Architecture", "Top-1 accuracy", "n"])
+df.style.format({"Top-1 accuracy": "{:.1%}"})
+```
+
+The **conditional** accuracy is the meaningful one for the cascade: when the
+AE *does* hand a frame off to the Oracle, the Oracle gets it right
+`{python} f"{CASCADE['top1_accuracy_classified_only']:.0%}"` of the time
+(`{python} CASCADE['n_classified']` images). The pure Oracle baseline
+achieves `{python} f"{ORACLE['top1_accuracy']:.0%}"` over all
+`{python} ORACLE['n']` images for `{python} f"${ORACLE['cost_per_100k_frames_usd']:,.0f}"`/100k
+frames.
+
+## 5. Confusion matrix
+
+```{python}
+#| label: fig-confusion
+#| fig-cap: "Cascade confusion matrix on the real NEU test subset"
+import numpy as np
+classes = sorted(CASCADE["confusion"].keys())
+preds = sorted({p for row in CASCADE["confusion"].values() for p in row})
+M = np.array([[CASCADE["confusion"][t].get(p, 0) for p in preds] for t in classes])
+fig, ax = plt.subplots(figsize=(8, 5))
+im = ax.imshow(M, cmap="Blues")
+ax.set_xticks(range(len(preds)), preds, rotation=30, ha="right")
+ax.set_yticks(range(len(classes)), classes)
+ax.set_xlabel("Predicted (or 'no_defect' if AE short-circuits)")
+ax.set_ylabel("True")
+for i in range(len(classes)):
+    for j in range(len(preds)):
+        if M[i, j]:
+            ax.text(j, i, M[i, j], ha="center", va="center",
+                    color="white" if M[i, j] > M.max()/2 else "black")
+fig.colorbar(im, ax=ax)
+plt.tight_layout()
+plt.show()
+```
+
+Reading this:
+
+- **Diagonal cells** = correct classifications by the Oracle.
+- **`no_defect` column** = frames the AE short-circuited (would be a
+  true-negative on a real feed; counts as a miss here).
+- **Inclusion** is dropped 100% by the AE — its texture is too similar to
+  the training class. A defect-free training set would fix this.
+
+## 6. What the cascade buys you
+
+| Property | Pure Oracle | Cascade | Δ |
+|---|---:|---:|---:|
+| Cost / 100k frames | \$`{python} f"{ORACLE['cost_per_100k_frames_usd']:,.0f}"` | \$`{python} f"{CASCADE['cost_per_100k_frames_usd']:,.0f}"` | **−`{python} f"{SAVINGS:.0f}%"`** |
+| Median latency | `{python} ORACLE['latency_ms']['p50']` ms | `{python} CASCADE['latency_ms']['p50']` ms | fast path |
+| Accuracy on classified frames | `{python} f"{ORACLE['top1_accuracy']:.0%}"` | `{python} f"{CASCADE['top1_accuracy_classified_only']:.0%}"` | comparable |
+| Tokens billed | `{python} f"{ORACLE['tokens_in']:,}"` | `{python} f"{CASCADE['tokens_in']:,}"` | **−`{python} f"{(1-CASCADE['tokens_in']/max(ORACLE['tokens_in'],1))*100:.0f}%"`** |
+
+## 7. Reproducing
+
+```bash
+# 1. Pull real NEU from public HF mirror (no auth required)
+uv run python -c "from cascade_defect.data.ingest import download_neu_from_hf; download_neu_from_hf()"
+uv run python -m cascade_defect.data.split
+
+# 2. Retrain Layer 1 AE on a single 'normal' class
+uv run python -m cascade_defect.layer1_autoencoder.train --normal-class rolled-in_scale --epochs 8
+
+# 3. Stratified 60-image cascade run (~3 min, ~$0.03)
+uv run python -m cascade_defect.eval.run_cascade --limit 60
+
+# 4. Pure-Oracle baseline on the same 60 images
+uv run python -m cascade_defect.eval.run_oracle_only --limit 60
+
+# 5. Roll up reports/metrics.json + render this page
+uv run python -m cascade_defect.eval.metrics
+quarto render docs/
+```

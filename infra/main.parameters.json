@@ -7,6 +7,8 @@
     "location": { "value": "westeurope" },
     "monthlyBudgetUsd": { "value": 50 },
     "budgetAlertEmails": { "value": ["jonathan.jayes@nexergroup.com"] },
-    "enableGpuWorkloadProfile": { "value": true }
+    "enableGpuWorkloadProfile": { "value": true },
+    "deployOpenAi": { "value": true },
+    "oracleCapacity": { "value": 10 }
   }
 }

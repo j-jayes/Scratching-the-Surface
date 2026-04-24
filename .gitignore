@@ -31,6 +31,8 @@ coverage.xml
 # Quarto build output
 docs/_site/
 docs/.quarto/
+docs/.jupyter_cache/
+docs/_freeze/
 
 # Azure / secrets
 .env
@@ -65,4 +67,10 @@ docker/secrets/
 # Bicep compiled output
 infra/**/*.json
 !infra/**/*.parameters.json
+
+# Reports — keep summary metrics, drop large per-frame logs
+reports/*.jsonl
+
+# Ad-hoc model weight downloads at repo root (e.g. yolov8n.pt pretrained)
+/*.pt
 

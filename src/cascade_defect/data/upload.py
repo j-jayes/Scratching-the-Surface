@@ -18,6 +18,9 @@ logger = logging.getLogger(__name__)
 
 
 def _client(account: str) -> BlobServiceClient:
+    # Silence the very chatty per-request HTTP logger from azure-core.
+    logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.WARNING)
+    logging.getLogger("azure.identity").setLevel(logging.WARNING)
     return BlobServiceClient(
         account_url=f"https://{account}.blob.core.windows.net",
         credential=DefaultAzureCredential(),
