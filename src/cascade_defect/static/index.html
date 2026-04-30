@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cascade Defect Detection — Live Demo</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <h1>Cascade Defect Detection</h1>
+    <p class="tagline">
+      Three-layer cascade: PatchCore-lite → YOLOv8n → gpt-4.1-mini oracle.
+      Cheap escalation only when needed.
+    </p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>1 · Pick an image</h2>
+
+      <div class="examples">
+        <button type="button" class="example" data-src="/static/examples/clean.jpg" data-domain="severstal">
+          <img src="/static/examples/clean.jpg" alt="Clean steel sheet" />
+          <span>Clean (Severstal)</span>
+        </button>
+        <button type="button" class="example" data-src="/static/examples/severstal_defect.jpg" data-domain="severstal">
+          <img src="/static/examples/severstal_defect.jpg" alt="Defective steel sheet" />
+          <span>Defect (Severstal)</span>
+        </button>
+        <button type="button" class="example" data-src="/static/examples/ksdd2_defect.png" data-domain="ksdd2">
+          <img src="/static/examples/ksdd2_defect.png" alt="KolektorSDD2 defect" />
+          <span>Defect (KSDD2)</span>
+        </button>
+      </div>
+
+      <div class="upload-row">
+        <label for="file">…or upload your own (≤ 2 MB, ≤ 2048 px):</label>
+        <input id="file" type="file" accept="image/*" />
+      </div>
+
+      <div class="domain-row">
+        <label for="domain">Domain:</label>
+        <select id="domain">
+          <option value="severstal">severstal</option>
+          <option value="ksdd2">ksdd2</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>2 · Run the cascade</h2>
+      <button id="run" type="button" class="primary">Run cascade</button>
+      <p class="cold-start">
+        ⏳ <strong>First request after idle takes ~30–60 seconds</strong> while the
+        scale-to-zero containers spin up. Subsequent requests are fast.
+      </p>
+      <div id="status"></div>
+    </section>
+
+    <section class="card" id="result-card" hidden>
+      <h2>3 · Result</h2>
+      <div id="summary"></div>
+      <details open>
+        <summary>Per-layer trace (raw JSON)</summary>
+        <pre id="trace"></pre>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    <p>
+      <a href="https://github.com/" target="_blank" rel="noopener">Source &amp; case study</a>
+      · Public demo · Rate-limited 10 requests/min/IP, 200/day
+    </p>
+  </footer>
+
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

@@ -32,8 +32,20 @@ param aoaiApiKey string
 param aoaiDeployment string = 'oracle'
 param location string = resourceGroup().location
 
-@description('Layer 1 autoencoder MSE threshold above which a frame escalates.')
+@description('Layer 1 autoencoder MSE threshold above which a frame escalates (legacy AE scorer; ignored when SCORER=patchcore).')
 param mseThreshold string = '0.0098'
+
+@description('PatchCore z-score threshold for the Severstal domain (Phase L calibrated knee).')
+param zThresholdSeverstal string = '-0.5'
+
+@description('PatchCore z-score threshold for the KSDD2 domain (Phase L calibrated knee).')
+param zThresholdKsdd2 string = '1.0'
+
+@description('Daily USD cap on Azure OpenAI spend for the live demo (Layer 3).')
+param aoaiDailyUsdCap string = '5.0'
+
+@description('Per-IP rate limit applied to /predict on the public router.')
+param routerRateLimit string = '10/minute;200/day'
 
 var commonTags = {
   project: 'cascade-defect'
@@ -114,7 +126,14 @@ resource layer1 'Microsoft.App/containerApps@2024-03-01' = {
           image: '${acrLoginServer}/cascade-layer1:${imageTag}'
           resources: { cpu: json('0.5'), memory: '1Gi' }
           env: [
+            { name: 'SCORER', value: 'patchcore' }
+            { name: 'PATCHCORE_DIR', value: '/app/models/patchcore_metal' }
             { name: 'MSE_THRESHOLD', value: mseThreshold }
+            { name: 'Z_THRESHOLD', value: '3.0' }
+            { name: 'Z_THRESHOLD_SEVERSTAL', value: zThresholdSeverstal }
+            { name: 'Z_THRESHOLD_KSDD2', value: zThresholdKsdd2 }
+            { name: 'DEFAULT_DOMAIN', value: 'severstal' }
+            { name: 'IMAGE_SIZE', value: '224' }
           ]
         }
       ]
@@ -191,6 +210,9 @@ resource layer3 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'AOAI_DEPLOYMENT', value: aoaiDeployment }
             { name: 'AOAI_API_VERSION', value: '2024-10-21' }
             { name: 'AOAI_API_KEY', secretRef: 'aoai-api-key' }
+            { name: 'AOAI_DAILY_USD_CAP', value: aoaiDailyUsdCap }
+            { name: 'USE_ORACLE_CACHE', value: '1' }
+            { name: 'DEFAULT_DOMAIN', value: 'severstal' }
           ]
         }
       ]
@@ -230,10 +252,14 @@ resource router 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'LAYER2_URL', value: 'https://${layer2.properties.configuration.ingress.fqdn}' }
             { name: 'LAYER3_URL', value: 'https://${layer3.properties.configuration.ingress.fqdn}' }
             { name: 'L2_CONF_ESCALATE_BELOW', value: '0.7' }
+            { name: 'STATIC_DIR', value: '/app/static' }
+            { name: 'MAX_UPLOAD_BYTES', value: '2097152' }
+            { name: 'MAX_IMAGE_DIM', value: '2048' }
+            { name: 'RATE_LIMIT_PREDICT', value: routerRateLimit }
           ]
         }
       ]
-      scale: { minReplicas: 0, maxReplicas: 3 }
+      scale: { minReplicas: 0, maxReplicas: 5 }
     }
   }
 }

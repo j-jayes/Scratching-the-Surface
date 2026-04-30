@@ -111,6 +111,7 @@ apps-deploy: az-login ## Deploy the four Container Apps (router + 3 layers).
 	  --parameters \
 	    environmentName=$(ACA_ENVIRONMENT) \
 	    acrName=$(ACR_NAME) \
+	    acrLoginServer=$(ACR_LOGIN_SERVER) \
 	    storageAccountName=$(BLOB_ACCOUNT) \
 	    aoaiEndpoint=$(AOAI_ENDPOINT) \
 	    aoaiApiKey=$(AOAI_API_KEY) \
@@ -120,6 +121,26 @@ apps-deploy: az-login ## Deploy the four Container Apps (router + 3 layers).
 
 apps-show: az-login ## Print router URL.
 	@az containerapp show -n cascade-router -g $(RESOURCE_GROUP) --query "properties.configuration.ingress.fqdn" -o tsv
+
+# =============================================================================
+# Live demo (Phase L+) — build images, deploy apps, smoke-test the public URL.
+# =============================================================================
+demo-deploy: images-build apps-deploy ## Build images + deploy apps + print router URL.
+	@echo ""
+	@echo "── Live demo router ────────────────────────────────────────────"
+	@URL="https://$$(az containerapp show -n cascade-router -g $(RESOURCE_GROUP) --query 'properties.configuration.ingress.fqdn' -o tsv)"; \
+	  echo "  $$URL"; \
+	  echo "  $$URL/healthz"
+
+demo-smoke: az-login ## Curl /healthz, /, and /predict on the deployed router (cold start).
+	@URL="https://$$(az containerapp show -n cascade-router -g $(RESOURCE_GROUP) --query 'properties.configuration.ingress.fqdn' -o tsv)"; \
+	  echo "Router: $$URL"; \
+	  echo "── /healthz ─"; curl -fsS "$$URL/healthz"; echo ""; \
+	  echo "── / (HTML) ─"; curl -fsS -o /dev/null -w "HTTP %{http_code}  %{size_download} bytes\n" "$$URL/"; \
+	  echo "── /predict (severstal/clean) ─"; \
+	  curl -fsS -X POST "$$URL/predict" \
+	    -F "file=@src/cascade_defect/static/examples/clean.jpg" \
+	    -F "domain=severstal" | head -c 1000; echo ""
 
 # =============================================================================
 # Data
@@ -133,4 +154,4 @@ data-upload: ## Upload local data/raw to Blob (Phase D).
 data-split: ## Generate train/val/test splits (Phase D).
 	uv run python -m cascade_defect.data.split
 
-.PHONY: help sync test lint fmt az-login infra-rg infra-plan infra-up infra-show infra-down images-build images-push apps-deploy apps-show data-fetch data-upload data-split
+.PHONY: help sync test lint fmt az-login infra-rg infra-plan infra-up infra-show infra-down images-build images-push apps-deploy apps-show demo-deploy demo-smoke data-fetch data-upload data-split

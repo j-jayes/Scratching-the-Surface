@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import logging
 import os
+from contextlib import suppress
 from io import BytesIO
 from pathlib import Path
 
@@ -48,6 +49,18 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 SCORER = os.getenv("SCORER", "ae").lower()  # "ae" | "patchcore"
 MSE_THRESHOLD = float(os.getenv("MSE_THRESHOLD", "0.02"))
 Z_THRESHOLD = float(os.getenv("Z_THRESHOLD", "3.0"))
+# Phase L: per-domain calibrated knee thresholds (override Z_THRESHOLD when set).
+# See models/patchcore_metal/summary.json -> "calibration_knee".
+_PER_DOMAIN_Z: dict[str, float] = {}
+for _d in ("severstal", "ksdd2"):
+    _v = os.getenv(f"Z_THRESHOLD_{_d.upper()}")
+    if _v is not None and _v != "":
+        with suppress(ValueError):
+            _PER_DOMAIN_Z[_d] = float(_v)
+
+
+def _z_threshold_for(domain: str) -> float:
+    return _PER_DOMAIN_Z.get(domain.lower(), Z_THRESHOLD)
 MODEL_PATH = os.getenv("MODEL_PATH", "models/autoencoder/best.pt")
 CALIBRATION_PATH = os.getenv(
     "CALIBRATION_PATH", "models/autoencoder_metal/calibration.json"
@@ -114,6 +127,7 @@ async def health() -> dict:
             "device": DEVICE,
             "score_kind": "patchcore_z",
             "z_threshold": Z_THRESHOLD,
+            "z_threshold_per_domain": _PER_DOMAIN_Z,
             "domains": sorted(_patchcore_banks),
             "default_domain": DEFAULT_DOMAIN,
         }
@@ -149,7 +163,8 @@ async def predict(
         bank, pc_calib = bundle
         raw = score_image(_patchcore_extractor, bank, img, device=DEVICE)
         z = (raw - pc_calib.score_mean) / max(pc_calib.score_std, 1e-9)
-        is_defect = z >= Z_THRESHOLD
+        z_thr = _z_threshold_for(chosen_domain)
+        is_defect = z >= z_thr
         score_value = z
         score_kind = "patchcore_z"
     else:
@@ -159,7 +174,7 @@ async def predict(
         if stats is not None:
             tensor = make_transform(IMAGE_SIZE, stats)(img).to(DEVICE)
             result = score_tensor(
-                _model, tensor, stats=stats, z_threshold=Z_THRESHOLD, domain=chosen_domain
+                _model, tensor, stats=stats, z_threshold=_z_threshold_for(chosen_domain), domain=chosen_domain
             )
             is_defect = result.is_anomaly
             score_value = result.z_score
