@@ -70,8 +70,8 @@ def _sweep_one(records: list[dict], lam: float) -> dict:
     curve = []
     best = None
     for tau in Z_GRID:
-        tp = sum(1 for t, s in zip(truth, scores) if t and s >= tau)
-        fp = sum(1 for t, s in zip(truth, scores) if (not t) and s >= tau)
+        tp = sum(1 for t, s in zip(truth, scores, strict=True) if t and s >= tau)
+        fp = sum(1 for t, s in zip(truth, scores, strict=True) if (not t) and s >= tau)
         fn = n_pos - tp
         precision = tp / (tp + fp) if (tp + fp) else 0.0
         recall = tp / n_pos if n_pos else 0.0

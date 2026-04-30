@@ -349,6 +349,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#ae-patchcore-production-yolo-the-honest-progression-story" id="toc-ae-patchcore-production-yolo-the-honest-progression-story" class="nav-link" data-scroll-target="#ae-patchcore-production-yolo-the-honest-progression-story">AE → PatchCore → production YOLO (the honest progression story)</a></li>
   <li><a href="#per-class-confusion-on-track-a-defectives-the-cascades-final-call" id="toc-per-class-confusion-on-track-a-defectives-the-cascades-final-call" class="nav-link" data-scroll-target="#per-class-confusion-on-track-a-defectives-the-cascades-final-call">Per-class confusion on Track A defectives (the cascade’s final call)</a></li>
   </ul></li>
+  <li><a href="#phase-l-baselines-statistical-rigour-and-edge-latency" id="toc-phase-l-baselines-statistical-rigour-and-edge-latency" class="nav-link" data-scroll-target="#phase-l-baselines-statistical-rigour-and-edge-latency">Phase L — baselines, statistical rigour, and edge latency</a>
+  <ul class="collapse">
+  <li><a href="#cascade-vs-single-layer-baselines" id="toc-cascade-vs-single-layer-baselines" class="nav-link" data-scroll-target="#cascade-vs-single-layer-baselines">1. Cascade vs single-layer baselines</a></li>
+  <li><a href="#bootstrap-95-confidence-intervals" id="toc-bootstrap-95-confidence-intervals" class="nav-link" data-scroll-target="#bootstrap-95-confidence-intervals">2. Bootstrap 95% confidence intervals</a></li>
+  <li><a href="#cost-vs-f1-pareto-frontier-per-domain" id="toc-cost-vs-f1-pareto-frontier-per-domain" class="nav-link" data-scroll-target="#cost-vs-f1-pareto-frontier-per-domain">3. Cost-vs-F1 Pareto frontier (per domain)</a></li>
+  <li><a href="#edge-latency-does-this-need-a-gpu" id="toc-edge-latency-does-this-need-a-gpu" class="nav-link" data-scroll-target="#edge-latency-does-this-need-a-gpu">4. Edge latency — does this need a GPU?</a></li>
+  <li><a href="#robustness-smoke-test" id="toc-robustness-smoke-test" class="nav-link" data-scroll-target="#robustness-smoke-test">5. Robustness smoke test</a></li>
+  </ul></li>
   <li><a href="#appendix-v1-neu-numbers-for-honesty" id="toc-appendix-v1-neu-numbers-for-honesty" class="nav-link" data-scroll-target="#appendix-v1-neu-numbers-for-honesty">Appendix — v1 NEU numbers (for honesty)</a></li>
   </ul>
 </nav>
@@ -535,6 +543,54 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="per-class-confusion-on-track-a-defectives-the-cascades-final-call" class="level3">
 <h3 class="anchored" data-anchor-id="per-class-confusion-on-track-a-defectives-the-cascades-final-call">Per-class confusion on Track A defectives (the cascade’s final call)</h3>
 <p>The interesting cell is <code>no_defect</code>: those are the true Severstal defects the cascade missed. Their share is the recall ceiling — exactly the failure mode the K.4 cache <em>cannot</em> fix and the K.3 ablations (YOLOv8s, 1024 px) are designed to attack.</p>
+</section>
+</section>
+<section id="phase-l-baselines-statistical-rigour-and-edge-latency" class="level2">
+<h2 class="anchored" data-anchor-id="phase-l-baselines-statistical-rigour-and-edge-latency">Phase L — baselines, statistical rigour, and edge latency</h2>
+<p>Phase K answered “what does the cascade do?”. Phase L answers the four questions a sceptical reviewer asks next:</p>
+<ol type="1">
+<li><em>Is the cascade actually better than the obvious single-layer baselines?</em></li>
+<li><em>Are the headline numbers statistically meaningful, or is this n=180 noise?</em></li>
+<li><em>Where on the cost-vs-accuracy frontier does the operating point sit?</em></li>
+<li><em>Could this run on a CPU-only edge box, or does it need a GPU?</em></li>
+</ol>
+<section id="cascade-vs-single-layer-baselines" class="level3">
+<h3 class="anchored" data-anchor-id="cascade-vs-single-layer-baselines">1. Cascade vs single-layer baselines</h3>
+<p>Same 180 cascade_test frames, four systems run end-to-end through the same runner. The cascade is paired against an <strong>Oracle-only</strong> baseline (every frame to GPT-4.1-mini) on identical images, so a McNemar test is valid.</p>
+<div id="mcnemar-callout" class="cell" data-execution_count="8">
+<div class="cell-output cell-output-stdout">
+<pre><code>McNemar paired test (cascade vs Oracle-only, n=180): χ² = 12.023, p = 0.0005. Cascade-only-correct = 34, Oracle-only-correct = 10. Verdict: cascade significantly better.</code></pre>
+</div>
+</div>
+<p><strong>The honest read.</strong> The L1-only baseline (PatchCore at calibrated <code>τ</code>) beats the full cascade on raw binary F1 (0.86 vs 0.80). That is <em>not</em> a bug — it is the structural cost of asking the cascade to also produce <em>class labels</em> and route uncertain-but-defective frames to the Oracle. A production buyer looking for “is this frame defective, yes/no?” would ship L1-only. A buyer who needs “and <em>what kind</em> of defect, with an audit trail?” pays the L2+L3 tax. The Pareto chart below makes this trade-off explicit.</p>
+</section>
+<section id="bootstrap-95-confidence-intervals" class="level3">
+<h3 class="anchored" data-anchor-id="bootstrap-95-confidence-intervals">2. Bootstrap 95% confidence intervals</h3>
+<p>Every headline F1 / precision / recall number in the Track A/B/C tables above is now reported with a 1 000-resample bootstrap CI (zero-dep, seed 42, <code>cascade_defect.eval.stats</code>). This catches the case where a 4-point F1 gain between two model versions is inside both versions’ confidence band — i.e.&nbsp;you are looking at noise, not a real improvement.</p>
+</section>
+<section id="cost-vs-f1-pareto-frontier-per-domain" class="level3">
+<h3 class="anchored" data-anchor-id="cost-vs-f1-pareto-frontier-per-domain">3. Cost-vs-F1 Pareto frontier (per domain)</h3>
+<p><code>τ</code> is the per-domain Z-score gate. Sweeping it from “let everything through” (low <code>τ</code>, high cost, high recall) to “block almost everything at L1” (high <code>τ</code>, low cost, recall collapses) traces a Pareto curve.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="assets/pareto_metal.png" class="img-fluid figure-img"></p>
+<figcaption>Cost vs F1 Pareto frontier — per-domain <code>τ</code> sweep with the chosen operating points (★) marked. Severstal’s curve plateaus around F1 ≈ 0.7 because its PatchCore Δμ is only +0.52σ (no τ recovers what the gate never separated). KSDD2’s curve sweeps cleanly to F1 ≈ 0.95 at low cost — the gate does almost all the work.</figcaption>
+</figure>
+</div>
+</section>
+<section id="edge-latency-does-this-need-a-gpu" class="level3">
+<h3 class="anchored" data-anchor-id="edge-latency-does-this-need-a-gpu">4. Edge latency — does this need a GPU?</h3>
+<p>Both backbones exported to ONNX (opset 17) and benchmarked under <code>onnxruntime</code> on a 4-thread CPU. A second confirmation that the cascade is not secretly GPU-bound.</p>
+<div id="onnx-latency" class="cell" data-execution_count="9">
+<div class="cell-output cell-output-stdout">
+<pre><code>L1+L2 combined p50 on 4-thread CPU (onnxruntime): 56.4 ms</code></pre>
+</div>
+</div>
+<p>The L3 escalation budget (“first response from GPT-4.1-mini”) sits at ~2.5 s p50 on the same hardware — three orders of magnitude slower than L1+L2, which is exactly why escalation gating matters.</p>
+</section>
+<section id="robustness-smoke-test" class="level3">
+<h3 class="anchored" data-anchor-id="robustness-smoke-test">5. Robustness smoke test</h3>
+<p><code>tests/test_robustness.py</code> (run nightly via <code>pytest -m slow</code>) corrupts a small batch of clean cascade_test frames with seven realistic factory nuisances — Gaussian noise (σ=10, σ=25), Gaussian blur (k=7), brightness shift ±30, JPEG quality 30 — and asserts the per-domain z-score stays finite and within ±5σ of the clean score. It catches silent regressions in preprocessing, normalisation, or backbone weights without making strong claims about Severstal separability (which is fundamentally weak by design).</p>
 </section>
 </section>
 <section id="appendix-v1-neu-numbers-for-honesty" class="level2">

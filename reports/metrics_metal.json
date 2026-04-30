@@ -15,6 +15,18 @@
       "precision": 0.5476,
       "recall": 0.7931,
       "f1": 0.6479,
+      "f1_ci95": [
+        0.5,
+        0.7568
+      ],
+      "precision_ci95": [
+        0.4,
+        0.6905
+      ],
+      "recall_ci95": [
+        0.6087,
+        0.913
+      ],
       "n_dropped_by_l1": 17,
       "l1_drop_rate_overall": 0.2833,
       "l1_drop_rate_on_negatives": 0.3667,
@@ -58,6 +70,18 @@
       "precision": 0.9615,
       "recall": 0.8333,
       "f1": 0.8929,
+      "f1_ci95": [
+        0.8,
+        0.9677
+      ],
+      "precision_ci95": [
+        0.875,
+        1.0
+      ],
+      "recall_ci95": [
+        0.7,
+        0.963
+      ],
       "n_dropped_by_l1": 31,
       "l1_drop_rate_overall": 0.5167,
       "l1_drop_rate_on_negatives": 0.9667,
@@ -100,6 +124,18 @@
       "precision": 1.0,
       "recall": 0.75,
       "f1": 0.8571,
+      "f1_ci95": [
+        0.7755,
+        0.9286
+      ],
+      "precision_ci95": [
+        1.0,
+        1.0
+      ],
+      "recall_ci95": [
+        0.6333,
+        0.8667
+      ],
       "n_dropped_by_l1": 7,
       "l1_drop_rate_overall": 0.1167,
       "l1_drop_rate_on_negatives": 0.0,

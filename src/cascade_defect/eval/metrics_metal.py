@@ -13,6 +13,8 @@ import collections
 import json
 from pathlib import Path
 
+from cascade_defect.eval import stats as _stats
+
 REPORTS = Path("reports")
 TRACE_PATH = REPORTS / "eval_cascade_metal.jsonl"
 OUT_PATH = REPORTS / "metrics_metal.json"
@@ -76,6 +78,12 @@ def summarise_track(recs: list[dict]) -> dict:
     recall = tp / (tp + fn) if (tp + fn) else 0.0
     f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
 
+    # Bootstrap 95 % CIs (1 000 resamples) — cheap and the headline becomes
+    # honest. ``_stats.*_stat`` re-derive the metric from a record sample.
+    f1_ci = _stats.bootstrap_ci(recs, _stats.f1_stat)
+    p_ci = _stats.bootstrap_ci(recs, _stats.precision_stat)
+    r_ci = _stats.bootstrap_ci(recs, _stats.recall_stat)
+
     # L1 drop = stopped at L1 with no_defect (i.e. AE/PatchCore short-circuit).
     n_dropped_l1 = sum(
         1 for r in recs
@@ -118,6 +126,9 @@ def summarise_track(recs: list[dict]) -> dict:
         "precision": round(precision, 4),
         "recall": round(recall, 4),
         "f1": round(f1, 4),
+        "f1_ci95": [round(f1_ci.lo, 4), round(f1_ci.hi, 4)],
+        "precision_ci95": [round(p_ci.lo, 4), round(p_ci.hi, 4)],
+        "recall_ci95": [round(r_ci.lo, 4), round(r_ci.hi, 4)],
         "n_dropped_by_l1": n_dropped_l1,
         "l1_drop_rate_overall": round(n_dropped_l1 / n, 4),
         "l1_drop_rate_on_negatives": round(l1_drop_rate_on_negatives, 4),

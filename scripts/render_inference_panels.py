@@ -15,7 +15,6 @@ Outputs:  website/assets/inferences/<example_id>/{input,recon,diff,yolo}.jpg
 from __future__ import annotations
 
 import json
-from io import BytesIO
 from pathlib import Path
 
 import matplotlib.pyplot as plt

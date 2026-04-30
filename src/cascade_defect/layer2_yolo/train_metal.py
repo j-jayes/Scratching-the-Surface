@@ -114,8 +114,8 @@ def train(
     workers: int = 0,
     cache: str = "ram",
 ) -> dict:
-    from ultralytics import YOLO  # local import — heavy
-    from ultralytics.utils import SETTINGS
+    import ultralytics.data.dataset as _ud
+    import ultralytics.data.utils as _udu
 
     # Containers ship with a 64 MiB ``/dev/shm`` by default, which is *not*
     # enough room for the ``Pool(NUM_THREADS=7)`` SemLock allocations Ultralytics
@@ -123,8 +123,8 @@ def train(
     # ACA does not expose ``--shm-size``, so we cap the pool size from Python
     # before any data path code touches the constant.
     import ultralytics.utils as _uu
-    import ultralytics.data.dataset as _ud
-    import ultralytics.data.utils as _udu
+    from ultralytics import YOLO  # local import — heavy
+    from ultralytics.utils import SETTINGS
     _uu.NUM_THREADS = max(1, min(max(workers, 2), _uu.NUM_THREADS))
     _ud.NUM_THREADS = _uu.NUM_THREADS
     if hasattr(_udu, "NUM_THREADS"):
@@ -136,8 +136,8 @@ def train(
     # a ``SimpleQueue`` regardless of whether workers are threads. Replace it
     # with a ``concurrent.futures.ThreadPoolExecutor``-backed shim that uses
     # plain ``threading.Lock`` (heap-allocated, no shm).
-    import multiprocessing.pool as _mpp
     import concurrent.futures as _cf
+    import multiprocessing.pool as _mpp
 
     class _ThreadPoolShim:
         def __init__(self, processes=None, *args, **kwargs):

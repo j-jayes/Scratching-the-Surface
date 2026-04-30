@@ -43,7 +43,7 @@ async def healthz() -> dict:
 
 
 @app.post("/predict")
-async def predict(file: UploadFile = File(...)) -> JSONResponse:
+async def predict(file: UploadFile = File(...)) -> JSONResponse:  # noqa: B008 (FastAPI idiom)
     blob = await file.read()
     name = file.filename or "image.jpg"
     trace: list[dict[str, Any]] = []

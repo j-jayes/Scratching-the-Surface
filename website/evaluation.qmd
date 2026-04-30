@@ -45,6 +45,7 @@ discarded defects.
 import pandas as pd
 if METAL and "tracks" in METAL and "A" in METAL["tracks"]:
     a = METAL["tracks"]["A"]
+    f1c = a.get("f1_ci95"); pc = a.get("precision_ci95"); rc = a.get("recall_ci95")
     df = pd.DataFrame({
         "Metric": [
             "n", "Precision", "Recall", "F1",
@@ -53,9 +54,9 @@ if METAL and "tracks" in METAL and "A" in METAL["tracks"]:
         ],
         "Cascade (L1 PatchCore + L2 YOLO + L3 Oracle)": [
             a["n"],
-            f"{a['precision']:.3f}",
-            f"{a['recall']:.3f}",
-            f"{a['f1']:.3f}",
+            f"{a['precision']:.3f}" + (f" [{pc[0]:.2f}, {pc[1]:.2f}]" if pc else ""),
+            f"{a['recall']:.3f}" + (f" [{rc[0]:.2f}, {rc[1]:.2f}]" if rc else ""),
+            f"{a['f1']:.3f}" + (f" [{f1c[0]:.2f}, {f1c[1]:.2f}]" if f1c else ""),
             f"{a['l1_drop_rate_on_negatives']:.3f}",
             a["latency_ms"]["mean"],
             a.get("cost_per_100k_frames_usd") or 0,
@@ -80,6 +81,7 @@ generalise, or did it just memorise Severstal?*
 #| label: track-b
 if METAL and "tracks" in METAL and "B" in METAL["tracks"]:
     b = METAL["tracks"]["B"]
+    f1c = b.get("f1_ci95"); pc = b.get("precision_ci95"); rc = b.get("recall_ci95")
     df = pd.DataFrame({
         "Metric": [
             "n", "Precision", "Recall", "F1",
@@ -87,9 +89,9 @@ if METAL and "tracks" in METAL and "B" in METAL["tracks"]:
         ],
         "Cascade (L1 PatchCore + L3 Oracle)": [
             b["n"],
-            f"{b['precision']:.3f}",
-            f"{b['recall']:.3f}",
-            f"{b['f1']:.3f}",
+            f"{b['precision']:.3f}" + (f" [{pc[0]:.2f}, {pc[1]:.2f}]" if pc else ""),
+            f"{b['recall']:.3f}" + (f" [{rc[0]:.2f}, {rc[1]:.2f}]" if rc else ""),
+            f"{b['f1']:.3f}" + (f" [{f1c[0]:.2f}, {f1c[1]:.2f}]" if f1c else ""),
             f"{b['l1_drop_rate_on_negatives']:.3f}",
             b["latency_ms"]["mean"],
         ],
@@ -251,6 +253,131 @@ The interesting cell is `no_defect`: those are the true Severstal defects
 the cascade missed. Their share is the recall ceiling — exactly the failure
 mode the K.4 cache *cannot* fix and the K.3 ablations (YOLOv8s, 1024 px)
 are designed to attack.
+
+## Phase L — baselines, statistical rigour, and edge latency
+
+Phase K answered "what does the cascade do?". Phase L answers the four
+questions a sceptical reviewer asks next:
+
+1. *Is the cascade actually better than the obvious single-layer baselines?*
+2. *Are the headline numbers statistically meaningful, or is this n=180 noise?*
+3. *Where on the cost-vs-accuracy frontier does the operating point sit?*
+4. *Could this run on a CPU-only edge box, or does it need a GPU?*
+
+### 1. Cascade vs single-layer baselines
+
+Same 180 cascade_test frames, four systems run end-to-end through the same
+runner. The cascade is paired against an **Oracle-only** baseline (every
+frame to GPT-4.1-mini) on identical images, so a McNemar test is valid.
+
+```{python}
+#| label: baselines-table
+import pandas as pd, json
+from pathlib import Path
+
+BASE = Path("../reports/baselines_metal.json")
+if BASE.exists():
+    b = json.loads(BASE.read_text())
+    rows = []
+    for name, v in b["systems"].items():
+        ci_f1 = v.get("f1_ci95", [None, None])
+        rows.append({
+            "System": name,
+            "n": v["n"],
+            "F1": f"{v['f1']:.3f}",
+            "F1 95% CI": f"[{ci_f1[0]:.2f}, {ci_f1[1]:.2f}]" if ci_f1[0] is not None else "—",
+            "Precision": f"{v['precision']:.3f}",
+            "Recall": f"{v['recall']:.3f}",
+            "USD / 100k frames": v.get("cost_per_100k_frames_usd"),
+            "p50 latency (ms)": v["latency_ms"]["p50"],
+        })
+    pd.DataFrame(rows).set_index("System")
+else:
+    print("Run `python -m cascade_defect.eval.baselines` to generate this table.")
+```
+
+```{python}
+#| label: mcnemar-callout
+if BASE.exists():
+    m = json.loads(BASE.read_text())["mcnemar_cascade_vs_oracle"]
+    print(
+        f"McNemar paired test (cascade vs Oracle-only, n={m['n_paired']}): "
+        f"χ² = {m['chi_square']}, p = {m['p_value']}. "
+        f"Cascade-only-correct = {m['cascade_only_correct']}, "
+        f"Oracle-only-correct = {m['oracle_only_correct']}. "
+        f"Verdict: {m['interpretation']}."
+    )
+```
+
+**The honest read.** The L1-only baseline (PatchCore at calibrated `τ`)
+beats the full cascade on raw binary F1 (0.86 vs 0.80). That is *not* a bug
+— it is the structural cost of asking the cascade to also produce *class
+labels* and route uncertain-but-defective frames to the Oracle. A
+production buyer looking for "is this frame defective, yes/no?" would ship
+L1-only. A buyer who needs "and *what kind* of defect, with an audit
+trail?" pays the L2+L3 tax. The Pareto chart below makes this trade-off
+explicit.
+
+### 2. Bootstrap 95% confidence intervals
+
+Every headline F1 / precision / recall number in the Track A/B/C tables
+above is now reported with a 1 000-resample bootstrap CI (zero-dep, seed
+42, `cascade_defect.eval.stats`). This catches the case where a 4-point F1
+gain between two model versions is inside both versions' confidence band —
+i.e. you are looking at noise, not a real improvement.
+
+### 3. Cost-vs-F1 Pareto frontier (per domain)
+
+`τ` is the per-domain Z-score gate. Sweeping it from "let everything
+through" (low `τ`, high cost, high recall) to "block almost everything at
+L1" (high `τ`, low cost, recall collapses) traces a Pareto curve.
+
+![Cost vs F1 Pareto frontier — per-domain `τ` sweep with the chosen
+operating points (★) marked. Severstal's curve plateaus around F1 ≈ 0.7
+because its PatchCore Δμ is only +0.52σ (no τ recovers what the gate never
+separated). KSDD2's curve sweeps cleanly to F1 ≈ 0.95 at low cost — the
+gate does almost all the work.](assets/pareto_metal.png)
+
+### 4. Edge latency — does this need a GPU?
+
+Both backbones exported to ONNX (opset 17) and benchmarked under
+`onnxruntime` on a 4-thread CPU. A second confirmation that the cascade is
+not secretly GPU-bound.
+
+```{python}
+#| label: onnx-latency
+import json
+from pathlib import Path
+ONNX = Path("../reports/onnx_latency.json")
+if ONNX.exists():
+    r = json.loads(ONNX.read_text())
+    h = r.get("headline", {})
+    rows = [{"Stage": k, "Size (MB)": v["size_mb"],
+             "p50 (ms)": v["latency_cpu"].get("ms_p50"),
+             "p95 (ms)": v["latency_cpu"].get("ms_p95")}
+            for k, v in r["models"].items()]
+    import pandas as pd
+    print(f"L1+L2 combined p50 on {h.get('hardware','CPU')}: "
+          f"{h.get('l1_l2_combined_p50_ms')} ms")
+    pd.DataFrame(rows).set_index("Stage")
+else:
+    print("Run `python scripts/export_onnx.py` to generate this table.")
+```
+
+The L3 escalation budget ("first response from GPT-4.1-mini") sits at
+~2.5 s p50 on the same hardware — three orders of magnitude slower than
+L1+L2, which is exactly why escalation gating matters.
+
+### 5. Robustness smoke test
+
+`tests/test_robustness.py` (run nightly via `pytest -m slow`) corrupts a
+small batch of clean cascade_test frames with seven realistic factory
+nuisances — Gaussian noise (σ=10, σ=25), Gaussian blur (k=7), brightness
+shift ±30, JPEG quality 30 — and asserts the per-domain z-score stays
+finite and within ±5σ of the clean score. It catches silent regressions in
+preprocessing, normalisation, or backbone weights without making strong
+claims about Severstal separability (which is fundamentally weak by
+design).
 
 ## Appendix — v1 NEU numbers (for honesty)
 

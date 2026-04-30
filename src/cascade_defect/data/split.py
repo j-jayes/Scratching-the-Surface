@@ -13,7 +13,7 @@ import json
 import logging
 import random
 import shutil
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -105,7 +105,7 @@ def split_dataset(
     # Persist a manifest describing every split → useful for reproducibility and
     # for the GPT-4o annotator (it needs class labels for the seed images only).
     manifest = {
-        "created_utc": datetime.now(timezone.utc).isoformat(),
+        "created_utc": datetime.now(UTC).isoformat(),
         "random_seed": random_seed,
         "seed_per_class": seed_per_class,
         "test_fraction": test_fraction,

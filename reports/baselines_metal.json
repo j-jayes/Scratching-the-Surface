@@ -1,0 +1,368 @@
+{
+  "systems": {
+    "cascade": {
+      "n": 180,
+      "f1": 0.7983,
+      "f1_ci95": [
+        0.7378,
+        0.8477
+      ],
+      "precision": 0.823,
+      "precision_ci95": [
+        0.7458,
+        0.8919
+      ],
+      "recall": 0.775,
+      "recall_ci95": [
+        0.6983,
+        0.8413
+      ],
+      "cost_per_100k_frames_usd": 36.7,
+      "latency_ms": {
+        "p50": 568,
+        "p95": 4319
+      }
+    },
+    "l1_only": {
+      "n": 180,
+      "f1": 0.8571,
+      "f1_ci95": [
+        0.8067,
+        0.9032
+      ],
+      "precision": 0.84,
+      "precision_ci95": [
+        0.7717,
+        0.9027
+      ],
+      "recall": 0.875,
+      "recall_ci95": [
+        0.812,
+        0.9322
+      ],
+      "cost_per_100k_frames_usd": 0.0,
+      "latency_ms": {
+        "p50": 282,
+        "p95": 783
+      }
+    },
+    "yolo_only": {
+      "n": 120,
+      "f1": 0.6941,
+      "f1_ci95": [
+        0.6154,
+        0.7667
+      ],
+      "precision": 0.7375,
+      "precision_ci95": [
+        0.641,
+        0.8293
+      ],
+      "recall": 0.6556,
+      "recall_ci95": [
+        0.5618,
+        0.7553
+      ],
+      "cost_per_100k_frames_usd": 0.0,
+      "latency_ms": {
+        "p50": 151,
+        "p95": 398
+      }
+    },
+    "oracle_only": {
+      "n": 180,
+      "f1": 0.6926,
+      "f1_ci95": [
+        0.6233,
+        0.7578
+      ],
+      "precision": 0.7207,
+      "precision_ci95": [
+        0.6372,
+        0.8037
+      ],
+      "recall": 0.6667,
+      "recall_ci95": [
+        0.5859,
+        0.7458
+      ],
+      "cost_per_100k_frames_usd": 73.03,
+      "latency_ms": {
+        "p50": 2630,
+        "p95": 3627
+      }
+    }
+  },
+  "by_track": {
+    "A": {
+      "cascade": {
+        "n": 60,
+        "f1": 0.6389,
+        "f1_ci95": [
+          0.5,
+          0.7568
+        ],
+        "precision": 0.5476,
+        "precision_ci95": [
+          0.4,
+          0.6905
+        ],
+        "recall": 0.7667,
+        "recall_ci95": [
+          0.6087,
+          0.913
+        ],
+        "cost_per_100k_frames_usd": 16.84,
+        "latency_ms": {
+          "p50": 658,
+          "p95": 4120
+        }
+      },
+      "l1_only": {
+        "n": 60,
+        "f1": 0.6575,
+        "f1_ci95": [
+          0.5217,
+          0.7632
+        ],
+        "precision": 0.5581,
+        "precision_ci95": [
+          0.4091,
+          0.6977
+        ],
+        "recall": 0.8,
+        "recall_ci95": [
+          0.6538,
+          0.931
+        ],
+        "cost_per_100k_frames_usd": 0.0,
+        "latency_ms": {
+          "p50": 645,
+          "p95": 875
+        }
+      },
+      "yolo_only": {
+        "n": 60,
+        "f1": 0.7407,
+        "f1_ci95": [
+          0.6197,
+          0.8409
+        ],
+        "precision": 0.5882,
+        "precision_ci95": [
+          0.449,
+          0.7255
+        ],
+        "recall": 1.0,
+        "recall_ci95": [
+          1.0,
+          1.0
+        ],
+        "cost_per_100k_frames_usd": 0.0,
+        "latency_ms": {
+          "p50": 133,
+          "p95": 443
+        }
+      },
+      "oracle_only": {
+        "n": 60,
+        "f1": 0.5789,
+        "f1_ci95": [
+          0.4348,
+          0.6988
+        ],
+        "precision": 0.4783,
+        "precision_ci95": [
+          0.3333,
+          0.62
+        ],
+        "recall": 0.7333,
+        "recall_ci95": [
+          0.5714,
+          0.8966
+        ],
+        "cost_per_100k_frames_usd": 63.97,
+        "latency_ms": {
+          "p50": 2513,
+          "p95": 3639
+        }
+      }
+    },
+    "B": {
+      "cascade": {
+        "n": 60,
+        "f1": 0.8929,
+        "f1_ci95": [
+          0.8,
+          0.9677
+        ],
+        "precision": 0.9615,
+        "precision_ci95": [
+          0.875,
+          1.0
+        ],
+        "recall": 0.8333,
+        "recall_ci95": [
+          0.7,
+          0.963
+        ],
+        "cost_per_100k_frames_usd": 52.53,
+        "latency_ms": {
+          "p50": 367,
+          "p95": 4616
+        }
+      },
+      "l1_only": {
+        "n": 60,
+        "f1": 0.9492,
+        "f1_ci95": [
+          0.8846,
+          1.0
+        ],
+        "precision": 0.9655,
+        "precision_ci95": [
+          0.8846,
+          1.0
+        ],
+        "recall": 0.9333,
+        "recall_ci95": [
+          0.8438,
+          1.0
+        ],
+        "cost_per_100k_frames_usd": 0.0,
+        "latency_ms": {
+          "p50": 282,
+          "p95": 484
+        }
+      },
+      "oracle_only": {
+        "n": 60,
+        "f1": 0.7458,
+        "f1_ci95": [
+          0.6071,
+          0.8529
+        ],
+        "precision": 0.7586,
+        "precision_ci95": [
+          0.6061,
+          0.9062
+        ],
+        "recall": 0.7333,
+        "recall_ci95": [
+          0.5625,
+          0.8846
+        ],
+        "cost_per_100k_frames_usd": 97.06,
+        "latency_ms": {
+          "p50": 2769,
+          "p95": 3627
+        }
+      }
+    },
+    "C": {
+      "cascade": {
+        "n": 60,
+        "f1": 0.8571,
+        "f1_ci95": [
+          0.7755,
+          0.9286
+        ],
+        "precision": 1.0,
+        "precision_ci95": [
+          1.0,
+          1.0
+        ],
+        "recall": 0.75,
+        "recall_ci95": [
+          0.6333,
+          0.8667
+        ],
+        "cost_per_100k_frames_usd": 40.74,
+        "latency_ms": {
+          "p50": 377,
+          "p95": 4513
+        }
+      },
+      "l1_only": {
+        "n": 60,
+        "f1": 0.9381,
+        "f1_ci95": [
+          0.8889,
+          0.9744
+        ],
+        "precision": 1.0,
+        "precision_ci95": [
+          1.0,
+          1.0
+        ],
+        "recall": 0.8833,
+        "recall_ci95": [
+          0.8,
+          0.95
+        ],
+        "cost_per_100k_frames_usd": 0.0,
+        "latency_ms": {
+          "p50": 215,
+          "p95": 250
+        }
+      },
+      "yolo_only": {
+        "n": 60,
+        "f1": 0.6517,
+        "f1_ci95": [
+          0.5185,
+          0.7629
+        ],
+        "precision": 1.0,
+        "precision_ci95": [
+          1.0,
+          1.0
+        ],
+        "recall": 0.4833,
+        "recall_ci95": [
+          0.35,
+          0.6167
+        ],
+        "cost_per_100k_frames_usd": 0.0,
+        "latency_ms": {
+          "p50": 168,
+          "p95": 397
+        }
+      },
+      "oracle_only": {
+        "n": 60,
+        "f1": 0.75,
+        "f1_ci95": [
+          0.6364,
+          0.8462
+        ],
+        "precision": 1.0,
+        "precision_ci95": [
+          1.0,
+          1.0
+        ],
+        "recall": 0.6,
+        "recall_ci95": [
+          0.4667,
+          0.7333
+        ],
+        "cost_per_100k_frames_usd": 58.06,
+        "latency_ms": {
+          "p50": 2529,
+          "p95": 4017
+        }
+      }
+    }
+  },
+  "missing": [],
+  "mcnemar_cascade_vs_oracle": {
+    "n_paired": 180,
+    "both_correct": 99,
+    "both_wrong": 37,
+    "cascade_only_correct": 34,
+    "oracle_only_correct": 10,
+    "chi_square": 12.023,
+    "p_value": 0.0005,
+    "interpretation": "cascade significantly better"
+  }
+}

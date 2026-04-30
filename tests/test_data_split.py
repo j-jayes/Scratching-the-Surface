@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import random
-import shutil
 from pathlib import Path
 
 import pytest
@@ -14,7 +13,7 @@ from cascade_defect.data.split import NEU_CLASSES, split_dataset
 @pytest.fixture()
 def fake_raw_dir(tmp_path: Path) -> Path:
     """Create a minimal fake NEU dataset structure."""
-    rng = random.Random(0)
+    _rng = random.Random(0)  # noqa: F841 (kept for future deterministic content)
     for class_name in NEU_CLASSES:
         class_dir = tmp_path / class_name
         class_dir.mkdir()
