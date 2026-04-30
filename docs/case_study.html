@@ -8,7 +8,7 @@
 
 <meta name="dcterms.date" content="2026-04-30">
 
-<title>Inference walkthroughs – Project Cascade Defect</title>
+<title>Case study – Project Cascade Defect</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -265,7 +265,7 @@ ul.task-list li input[type="checkbox"] {
 <span class="menu-text">Home</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./case_study.html"> 
+    <a class="nav-link active" href="./case_study.html" aria-current="page"> 
 <span class="menu-text">Case Study</span></a>
   </li>  
   <li class="nav-item">
@@ -277,7 +277,7 @@ ul.task-list li input[type="checkbox"] {
 <span class="menu-text">Data Strategy</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link active" href="./inferences.html" aria-current="page"> 
+    <a class="nav-link" href="./inferences.html"> 
 <span class="menu-text">Inferences</span></a>
   </li>  
   <li class="nav-item">
@@ -308,18 +308,27 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#reading-guide" id="toc-reading-guide" class="nav-link active" data-scroll-target="#reading-guide">Reading guide</a></li>
+  <li><a href="#the-90-second-skim" id="toc-the-90-second-skim" class="nav-link active" data-scroll-target="#the-90-second-skim">The 90-second skim</a></li>
+  <li><a href="#three-turning-points" id="toc-three-turning-points" class="nav-link" data-scroll-target="#three-turning-points">Three turning points</a>
+  <ul class="collapse">
+  <li><a href="#turning-point-1-why-is-the-ae-saying-defects-look-more-normal-than-normals" id="toc-turning-point-1-why-is-the-ae-saying-defects-look-more-normal-than-normals" class="nav-link" data-scroll-target="#turning-point-1-why-is-the-ae-saying-defects-look-more-normal-than-normals">Turning point 1 — “Why is the AE saying defects look more normal than normals?”</a></li>
+  <li><a href="#turning-point-2-the-ae-still-cant-separate-severstal." id="toc-turning-point-2-the-ae-still-cant-separate-severstal." class="nav-link" data-scroll-target="#turning-point-2-the-ae-still-cant-separate-severstal.">Turning point 2 — “The AE still can’t separate Severstal.”</a></li>
+  <li><a href="#turning-point-3-one-τ-does-not-fit-two-domains." id="toc-turning-point-3-one-τ-does-not-fit-two-domains." class="nav-link" data-scroll-target="#turning-point-3-one-τ-does-not-fit-two-domains.">Turning point 3 — “One τ does not fit two domains.”</a></li>
+  </ul></li>
+  <li><a href="#what-this-project-demonstrates" id="toc-what-this-project-demonstrates" class="nav-link" data-scroll-target="#what-this-project-demonstrates">What this project demonstrates</a></li>
+  <li><a href="#decisions-appendix" id="toc-decisions-appendix" class="nav-link" data-scroll-target="#decisions-appendix">Decisions appendix</a></li>
+  <li><a href="#whats-left-on-the-roadmap" id="toc-whats-left-on-the-roadmap" class="nav-link" data-scroll-target="#whats-left-on-the-roadmap">What’s left on the roadmap</a></li>
   </ul>
 </nav>
     </div>
 <!-- main -->
-<main class="content page-columns page-full" id="quarto-document-content">
+<main class="content" id="quarto-document-content">
 
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Inference walkthroughs</h1>
-<p class="subtitle lead">What the cascade actually sees, layer by layer</p>
+<h1 class="title">Case study</h1>
+<p class="subtitle lead">From a brittle 3-class NEU demo to a calibrated metal-surface cascade — what changed and why</p>
 </div>
 
 
@@ -342,146 +351,87 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<p>This page walks through three frames from the production cascade — one for each behaviour the architecture is designed to produce. Every panel is generated from the actual end-to-end trace at <a href="https://github.com/j-jayes/Scratching-the-Surface/blob/main/reports"><code>reports/eval_cascade_metal_k1_calibrated.jsonl</code></a> by <a href="https://github.com/j-jayes/Scratching-the-Surface/blob/main/scripts/render_inference_panels_metal.py"><code>scripts/render_inference_panels_metal.py</code></a>.</p>
-<p>For each example you get three panels:</p>
+<section id="the-90-second-skim" class="level2">
+<h2 class="anchored" data-anchor-id="the-90-second-skim">The 90-second skim</h2>
+<p>A defect-detection cascade for rolled-steel coils. Three layers, increasing cost and capability:</p>
 <ol type="1">
-<li><strong>Input</strong> — the raw frame as the camera saw it, resized for display.</li>
-<li><strong>PatchCore heatmap</strong> — per-patch cosine distance to the nearest neighbours in the domain memory bank, overlaid in inferno colourmap. Bright regions are “looks unlike anything in the normal-distribution training pool”.</li>
-<li><strong>YOLO overlay</strong> — top-3 detections from the production <code>models/yolo_metal/best.pt</code> (mAP50 0.50, trained 50 ep / 640 px on a T4 in Phase J.4). Red is the highest-confidence box, amber are runners-up.</li>
+<li><strong>Layer 1 — PatchCore-lite</strong> (frozen ResNet18 + kNN memory bank, 11 ms p50 on a 4-thread CPU). Drops obvious normals.</li>
+<li><strong>Layer 2 — YOLOv8n</strong> (production weights, 50 epochs / 640 px / T4, mAP50 0.50, 45 ms CPU). Names the defect when it can.</li>
+<li><strong>Layer 3 — GPT-4.1-mini via Azure OpenAI</strong> (~2.5 s, ~$0.0003 / image, cached on a 6-bit dHash radius). The audited expert for everything else.</li>
 </ol>
-<p>The trace beneath each example is the literal router output — same code paths the live ACA app exercises, just re-run in-process for cheaper iteration.</p>
-<div id="render-examples" class="cell page-columns page-full" data-execution_count="2">
-<section id="l1-fast-path-clean-steel-gated-in-500-ms" class="level2 page-columns page-full">
-<h2 class="anchored" data-anchor-id="l1-fast-path-clean-steel-gated-in-500-ms">L1 fast path — clean steel, gated in &lt;500 ms</h2>
-<p><em>Track A, domain <code>severstal</code>, true polarity <code>normal</code>, router stopped at L1 (end-to-end 527 ms).</em></p>
-<p>Severstal in-domain. PatchCore reconstructs the surface below the calibrated z-threshold, the cascade returns <code>no_defect</code> immediately, no L2 / L3 cost. Roughly 95 % of a real factory feed looks like this.</p>
-<div class="column-page">
-<div class="quarto-layout-panel" data-layout-ncol="3">
-<div class="quarto-layout-row">
-<div class="quarto-layout-cell" style="flex-basis: 33.3%;justify-content: flex-start;">
-<p><img src="assets/inferences_metal/01_severstal_normal_l1_drop/input.jpg" class="img-fluid" alt="Input frame"> <img src="assets/inferences_metal/01_severstal_normal_l1_drop/heatmap.jpg" class="img-fluid" alt="PatchCore anomaly heatmap (p99 score 0.171)"> <img src="assets/inferences_metal/01_severstal_normal_l1_drop/yolo.jpg" class="img-fluid" alt="YOLO production detections (n=13)"></p>
-</div>
-</div>
-</div>
-</div>
-<p><strong>Router trace</strong></p>
-<table class="caption-top table table-sm table-striped small">
-<thead>
-<tr class="header">
-<th>Layer</th>
-<th>Decision</th>
-<th>Class</th>
-<th>Score</th>
-<th>Latency</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>L1</td>
-<td>no_defect</td>
-<td>-</td>
-<td>z=-1.03 (τ=-0.5)</td>
-<td>527 ms</td>
-</tr>
-</tbody>
-</table>
+<p>The headline number is <strong>F1 0.80 [0.74, 0.85]</strong> on a balanced 180-frame KSDD2+Severstal evaluation set with <strong>McNemar p = 0.0005</strong> against an Oracle-only baseline. The cascade is significantly more accurate than the “send every frame to GPT” reference <em>and</em> costs roughly <strong>6× less</strong> (~$37 vs ~$232 per 100 k frames at gpt-4.1-mini pricing).</p>
+<p><a href="./evaluation.html">Full evaluation page →</a> · <a href="./architecture.html">Architecture →</a> · <a href="https://github.com/j-jayes/Scratching-the-Surface">Repo →</a></p>
 </section>
-<section id="l2-production-yolo-defect-classified-no-oracle-bill" class="level2 page-columns page-full">
-<h2 class="anchored" data-anchor-id="l2-production-yolo-defect-classified-no-oracle-bill">L2 production YOLO — defect classified, no Oracle bill</h2>
-<p><em>Track A, domain <code>severstal</code>, true polarity <code>defective</code>, router stopped at L2 (end-to-end 430 ms).</em></p>
-<p>Severstal defective frame. PatchCore escalates at L1, the production YOLO (mAP50 0.50, trained 50 ep / 640 px on T4) returns a confident detection ≥ 0.5, the cascade short-circuits at L2 — no AOAI tokens spent. This is what the J.4 GPU retrain buys versus the smoke YOLO.</p>
-<div class="column-page">
-<div class="quarto-layout-panel" data-layout-ncol="3">
-<div class="quarto-layout-row">
-<div class="quarto-layout-cell" style="flex-basis: 33.3%;justify-content: flex-start;">
-<p><img src="assets/inferences_metal/02_severstal_defect_l2_yolo/input.jpg" class="img-fluid" alt="Input frame"> <img src="assets/inferences_metal/02_severstal_defect_l2_yolo/heatmap.jpg" class="img-fluid" alt="PatchCore anomaly heatmap (p99 score 0.218)"> <img src="assets/inferences_metal/02_severstal_defect_l2_yolo/yolo.jpg" class="img-fluid" alt="YOLO production detections (n=29)"></p>
+<section id="three-turning-points" class="level2">
+<h2 class="anchored" data-anchor-id="three-turning-points">Three turning points</h2>
+<p>The project has been through three honest pivots. None of them were obvious in advance; each was forced by data.</p>
+<section id="turning-point-1-why-is-the-ae-saying-defects-look-more-normal-than-normals" class="level3">
+<h3 class="anchored" data-anchor-id="turning-point-1-why-is-the-ae-saying-defects-look-more-normal-than-normals">Turning point 1 — “Why is the AE saying defects look more normal than normals?”</h3>
+<p>The first build trained a small convolutional autoencoder on NEU “rolled-in scale” patches and used image-mean reconstruction MSE as the anomaly score. On NEU it worked. On Severstal it inverted: defective crops had <em>lower</em> MSE than normal crops, because the AE had memorised texture and the defective crops were locally simpler.</p>
+<p><strong>Fix.</strong> Throw out image-mean MSE. Switch to <strong>per-domain patch-quantile</strong> scoring (p99 of the per-pixel MSE map), then z-normalise <em>per domain</em> against a held-out validation set of normals. Severstal’s inversion went from −0.62σ to within noise; KSDD2’s separation went from +1.5σ to +1.93σ.</p>
+</section>
+<section id="turning-point-2-the-ae-still-cant-separate-severstal." class="level3">
+<h3 class="anchored" data-anchor-id="turning-point-2-the-ae-still-cant-separate-severstal.">Turning point 2 — “The AE still can’t separate Severstal.”</h3>
+<p>Even after the patch-quantile fix, Severstal’s Δμ was barely a sigma. Rolled-steel imagery is dominated by mill-roll texture; a from-scratch 4-block AE doesn’t have the receptive field to model it.</p>
+<p><strong>Fix.</strong> Replace the AE with <strong>PatchCore-lite</strong> — frozen ImageNet ResNet18, hooks on <code>layer2</code>+<code>layer3</code>, k=5 nearest-neighbour scoring against a random 10% coreset of normal patches. KSDD2 jumped from 1.9σ to <strong>8.18σ</strong>. Severstal moved from noise to <strong>+0.52σ</strong> — still weak, but for the first time <em>consistently directional</em>. That’s the load-bearing fact the rest of the architecture is built on: <em>the gate is allowed to be weak on Severstal, because Layer 2 is strong on Severstal</em>.</p>
+</section>
+<section id="turning-point-3-one-τ-does-not-fit-two-domains." class="level3">
+<h3 class="anchored" data-anchor-id="turning-point-3-one-τ-does-not-fit-two-domains.">Turning point 3 — “One τ does not fit two domains.”</h3>
+<p>The first calibrated cascade used a single z-threshold for both domains. KSDD2 was getting hammered (Layer 1 escalated almost everything, defeating the cost story); Severstal was getting under-escalated (defects slipped through the gate). The two PatchCore distributions live on different scales because the underlying texture statistics are different — there is no single right answer.</p>
+<p><strong>Fix.</strong> Sweep <code>τ</code> per domain on a held-out validation slice, find the knee of the (escalation_rate, F1) curve, and persist <code>{severstal: -0.5, ksdd2: +1.0}</code> into <code>models/patchcore_metal/summary.json</code>. Track A F1 climbed from 0.65 to 0.80 (and the bootstrap CI stopped overlapping the unweighted version).</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="assets/pareto_metal.png" class="img-fluid figure-img"></p>
+<figcaption>Per-domain Pareto frontier with chosen operating points (★).</figcaption>
+</figure>
 </div>
-</div>
-</div>
-</div>
-<p><strong>Router trace</strong></p>
-<table class="caption-top table table-sm table-striped small">
+</section>
+</section>
+<section id="what-this-project-demonstrates" class="level2">
+<h2 class="anchored" data-anchor-id="what-this-project-demonstrates">What this project demonstrates</h2>
+<p>The implementation is intentionally end-to-end. The <em>interesting</em> parts are the calibration decisions, not the model code.</p>
+<table class="caption-top table">
 <thead>
 <tr class="header">
-<th>Layer</th>
-<th>Decision</th>
-<th>Class</th>
-<th>Score</th>
-<th>Latency</th>
+<th>Skill</th>
+<th>Where to look</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>L1</td>
-<td>defect</td>
-<td>-</td>
-<td>z=-0.04 (τ=-0.5)</td>
-<td>403 ms</td>
+<td>Honest model evaluation</td>
+<td><a href="./evaluation.html">evaluation.qmd</a> — bootstrap CIs, McNemar, baselines, Pareto</td>
 </tr>
 <tr class="even">
-<td>L2</td>
-<td>defect</td>
-<td>scratch</td>
-<td>conf=0.65, n=3</td>
-<td>26 ms</td>
+<td>Cost-aware system design</td>
+<td>dHash cache + per-domain τ + cascade short-circuit (<a href="./architecture.html">architecture.qmd</a>)</td>
 </tr>
-</tbody>
-</table>
-</section>
-<section id="l3-oracle-backstop-ksdd2-ood-defect-ae-escalates" class="level2 page-columns page-full">
-<h2 class="anchored" data-anchor-id="l3-oracle-backstop-ksdd2-ood-defect-ae-escalates">L3 Oracle backstop — KSDD2 OOD defect, AE escalates</h2>
-<p><em>Track B, domain <code>ksdd2</code>, true polarity <code>defective</code>, router stopped at L3 (end-to-end 3415 ms).</em></p>
-<p>KSDD2 (commutator surfaces) is a different metal domain — the Severstal-trained YOLO has no class for it, so the router skips L2 by design. PatchCore flags the anomaly, the Oracle classifies it as <code>surface_anomaly</code> with a one-line rationale. This is the architectural payoff: pay the AOAI token cost only on frames where the cheap layers can’t decide.</p>
-<div class="column-page">
-<div class="quarto-layout-panel" data-layout-ncol="3">
-<div class="quarto-layout-row">
-<div class="quarto-layout-cell" style="flex-basis: 33.3%;justify-content: flex-start;">
-<p><img src="assets/inferences_metal/03_ksdd2_defect_l3_oracle/input.jpg" class="img-fluid" alt="Input frame"> <img src="assets/inferences_metal/03_ksdd2_defect_l3_oracle/heatmap.jpg" class="img-fluid" alt="PatchCore anomaly heatmap (p99 score 0.402)"> <img src="assets/inferences_metal/03_ksdd2_defect_l3_oracle/yolo.jpg" class="img-fluid" alt="YOLO production detections (n=67)"></p>
-</div>
-</div>
-</div>
-</div>
-<p><strong>Router trace</strong></p>
-<table class="caption-top table table-sm table-striped small">
-<thead>
-<tr class="header">
-<th>Layer</th>
-<th>Decision</th>
-<th>Class</th>
-<th>Score</th>
-<th>Latency</th>
-</tr>
-</thead>
-<tbody>
 <tr class="odd">
-<td>L1</td>
-<td>defect</td>
-<td>-</td>
-<td>z=16.33 (τ=1.0)</td>
-<td>254 ms</td>
+<td>Domain transfer reasoning</td>
+<td>Three-track eval design (in-domain / second-domain / OOD)</td>
 </tr>
 <tr class="even">
-<td>L3</td>
-<td>scratch</td>
-<td>scratch</td>
-<td>conf=0.85</td>
-<td>3161 ms</td>
+<td>Production-readiness signals</td>
+<td>ONNX export, CI workflow, robustness tests, lint clean</td>
+</tr>
+<tr class="odd">
+<td>Telling the story honestly</td>
+<td>Reporting that <strong>L1-only beats the cascade</strong> on raw binary F1 — and explaining why</td>
 </tr>
 </tbody>
 </table>
-<blockquote class="blockquote">
-<p><strong>Oracle reasoning:</strong> <em>The image shows a long, thin, bright linear mark consistent with a scratch defect on the metal surface.</em></p>
-</blockquote>
 </section>
-</div>
-<section id="reading-guide" class="level2">
-<h2 class="anchored" data-anchor-id="reading-guide">Reading guide</h2>
-<p>When inspecting the panels:</p>
+<section id="decisions-appendix" class="level2">
+<h2 class="anchored" data-anchor-id="decisions-appendix">Decisions appendix</h2>
+<p><a href="./architecture.html#why-these-specific-choices">See architecture.qmd § “Why these specific choices?”</a> for the per-decision rationale: PatchCore vs anomalib, ResNet18 vs WideResNet50, single-shot YOLO vs two-stage, GPT-4.1-mini vs GPT-4o, dHash vs CLIP-embedding cache, per-domain τ vs single τ, bootstrap CIs vs analytical CIs, McNemar vs paired-t.</p>
+</section>
+<section id="whats-left-on-the-roadmap" class="level2">
+<h2 class="anchored" data-anchor-id="whats-left-on-the-roadmap">What’s left on the roadmap</h2>
+<p>Things deliberately <em>not</em> shipped, with the reason.</p>
 <ul>
-<li><strong>PatchCore heatmaps on Track A defectives</strong> should spotlight the region YOLO subsequently boxes. If the bright region sits anywhere YOLO ignores, the per-domain <code>τ</code> is too tight.</li>
-<li><strong>Heatmaps on Track A normals</strong> should be mostly cold. Hot patches on clean steel are a sign the calibration was done against the wrong distribution.</li>
-<li><strong>Oracle reasoning strings</strong> should reference the visible defect type rather than generic “surface irregularity” boilerplate. The few-shot prompt in <a href="https://github.com/j-jayes/Scratching-the-Surface/blob/main/src/cascade_defect/layer3_gpt4o/oracle.py"><code>oracle.py</code></a> was rewritten in J.2 around the Severstal+KSDD2 taxonomy specifically to ground the model.</li>
-<li><strong>YOLO box colours</strong> — red is the top detection, amber are runners-up. Track B (KSDD2) frames are deliberately out-of-distribution for the Severstal-trained YOLO; expect noisy class labels that the Oracle then corrects.</li>
+<li><strong>Active learning loop.</strong> The Oracle’s labels could in principle be recycled into a fine-tune of YOLO. Skipped for now — not enough signal yet at n=180 to justify the orchestration complexity, and the L1-only baseline beating the cascade on binary F1 says the next dollar of effort should go into Layer 1 separability, not Layer 2 retraining.</li>
+<li><strong>Live demo route.</strong> The microservice cascade in <code>src/cascade_defect/router.py</code> is real but needs four containers running. A CLI demo (<a href="https://github.com/j-jayes/Scratching-the-Surface/blob/main/scripts/demo_cascade.py"><code>scripts/demo_cascade.py</code></a>) ships the same in-process path with no infra.</li>
+<li><strong>Full ACA push-out.</strong> Bicep + container build pipeline is in <code>infra/</code> and <code>docker/</code>; deployment was deferred when the Severstal training run showed the cost story holds without a live endpoint. Re-opening this needs a real customer signal, not a portfolio motivation.</li>
 </ul>
 
 

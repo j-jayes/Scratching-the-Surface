@@ -269,6 +269,10 @@ ul.task-list li input[type="checkbox"] {
 <span class="menu-text">Home</span></a>
   </li>  
   <li class="nav-item">
+    <a class="nav-link" href="./case_study.html"> 
+<span class="menu-text">Case Study</span></a>
+  </li>  
+  <li class="nav-item">
     <a class="nav-link active" href="./architecture.html" aria-current="page"> 
 <span class="menu-text">Architecture</span></a>
   </li>  
@@ -314,6 +318,17 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#layer-3-oracle-azure-openai-vision" id="toc-layer-3-oracle-azure-openai-vision" class="nav-link" data-scroll-target="#layer-3-oracle-azure-openai-vision">Layer 3 — Oracle (Azure OpenAI vision)</a></li>
   <li><a href="#azure-topology" id="toc-azure-topology" class="nav-link" data-scroll-target="#azure-topology">Azure topology</a></li>
   <li><a href="#deployment-notes" id="toc-deployment-notes" class="nav-link" data-scroll-target="#deployment-notes">Deployment notes</a></li>
+  <li><a href="#why-these-specific-choices" id="toc-why-these-specific-choices" class="nav-link" data-scroll-target="#why-these-specific-choices">Why these specific choices?</a>
+  <ul class="collapse">
+  <li><a href="#layer-1-patchcore-lite-not-anomalibs-full-patchcore" id="toc-layer-1-patchcore-lite-not-anomalibs-full-patchcore" class="nav-link" data-scroll-target="#layer-1-patchcore-lite-not-anomalibs-full-patchcore">Layer 1 — PatchCore-lite, not anomalib’s full PatchCore</a></li>
+  <li><a href="#layer-2-yolov8n-single-shot-not-yolov8m-or-two-stage" id="toc-layer-2-yolov8n-single-shot-not-yolov8m-or-two-stage" class="nav-link" data-scroll-target="#layer-2-yolov8n-single-shot-not-yolov8m-or-two-stage">Layer 2 — YOLOv8n single-shot, not YOLOv8m or two-stage</a></li>
+  <li><a href="#layer-3-gpt-4.1-mini-not-gpt-4o" id="toc-layer-3-gpt-4.1-mini-not-gpt-4o" class="nav-link" data-scroll-target="#layer-3-gpt-4.1-mini-not-gpt-4o">Layer 3 — gpt-4.1-mini, not gpt-4o</a></li>
+  <li><a href="#cache-dhash-with-6-bit-hamming-radius-not-clip-embeddings" id="toc-cache-dhash-with-6-bit-hamming-radius-not-clip-embeddings" class="nav-link" data-scroll-target="#cache-dhash-with-6-bit-hamming-radius-not-clip-embeddings">Cache — dHash with 6-bit Hamming radius, not CLIP embeddings</a></li>
+  <li><a href="#calibration-per-domain-τ-not-a-single-τ" id="toc-calibration-per-domain-τ-not-a-single-τ" class="nav-link" data-scroll-target="#calibration-per-domain-τ-not-a-single-τ">Calibration — per-domain τ, not a single τ</a></li>
+  <li><a href="#confidence-intervals-bootstrap-not-analytical-wilson-clopper-pearson" id="toc-confidence-intervals-bootstrap-not-analytical-wilson-clopper-pearson" class="nav-link" data-scroll-target="#confidence-intervals-bootstrap-not-analytical-wilson-clopper-pearson">Confidence intervals — bootstrap, not analytical Wilson / Clopper-Pearson</a></li>
+  <li><a href="#system-comparison-mcnemar-not-paired-t" id="toc-system-comparison-mcnemar-not-paired-t" class="nav-link" data-scroll-target="#system-comparison-mcnemar-not-paired-t">System comparison — McNemar, not paired-t</a></li>
+  <li><a href="#robustness-per-image-stability-not-polarity-preservation" id="toc-robustness-per-image-stability-not-polarity-preservation" class="nav-link" data-scroll-target="#robustness-per-image-stability-not-polarity-preservation">Robustness — per-image stability, not polarity preservation</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -603,8 +618,44 @@ Figure&nbsp;4: Deployed Azure infrastructure (West Europe, RG cascade-dev-rg)
 <p>Modern GPU SKUs (T4, A10, A100, H100) currently have <strong>zero</strong> VM quota on this subscription. ACA’s <code>gpu-t4</code> workload profile sidesteps the VM quota entirely, which is why all training and inference runs through Container Apps Jobs rather than a managed compute cluster.</p>
 </div>
 </div>
+</section>
+<section id="why-these-specific-choices" class="level2">
+<h2 class="anchored" data-anchor-id="why-these-specific-choices">Why these specific choices?</h2>
+<p>A reviewer’s-eye view of the eight non-obvious decisions in this build, each phrased as the alternative I rejected and why.</p>
+<section id="layer-1-patchcore-lite-not-anomalibs-full-patchcore" class="level3">
+<h3 class="anchored" data-anchor-id="layer-1-patchcore-lite-not-anomalibs-full-patchcore">Layer 1 — PatchCore-lite, not anomalib’s full PatchCore</h3>
+<p><strong>Rejected:</strong> anomalib’s PatchCore (WideResNet50 backbone, greedy-coreset sub-sampling, Mahalanobis scoring, ~250 ms / image on CPU). <strong>Chose:</strong> ResNet18 backbone (~11 M params), random 10% coreset, plain cosine kNN. ~50 ms on CPU; ~11 ms via ONNX. <strong>Why.</strong> The L1 latency budget is 100 ms p50, and the random coreset is statistically equivalent to the greedy version for our 6 k-image validation pool while being 50× faster to build. The accuracy cost is zero on KSDD2 (Δμ +8.18σ vs +6σ in the paper) and near-zero on Severstal (the hard case is hard for both).</p>
+</section>
+<section id="layer-2-yolov8n-single-shot-not-yolov8m-or-two-stage" class="level3">
+<h3 class="anchored" data-anchor-id="layer-2-yolov8n-single-shot-not-yolov8m-or-two-stage">Layer 2 — YOLOv8n single-shot, not YOLOv8m or two-stage</h3>
+<p><strong>Rejected:</strong> YOLOv8m (mAP +5–8 points, ~3× compute) and Faster-RCNN (another +5 points, ~10×). <strong>Chose:</strong> YOLOv8n at 640 px, 50 epochs on a single T4. <strong>Why.</strong> Layer 2 is a <em>throughput</em> component, not the system’s accuracy ceiling — Layer 3 is. Spending the next dollar on a bigger Layer 2 buys ~3 mAP at 3× the cost; spending it on better Layer 1 calibration moves the cascade by ~7 F1 points (see Phase K). A 3 M-param backbone also exports cleanly to ONNX for edge.</p>
+</section>
+<section id="layer-3-gpt-4.1-mini-not-gpt-4o" class="level3">
+<h3 class="anchored" data-anchor-id="layer-3-gpt-4.1-mini-not-gpt-4o">Layer 3 — gpt-4.1-mini, not gpt-4o</h3>
+<p><strong>Rejected:</strong> gpt-4o ($2.50 in / $10.00 out per 1M tokens). <strong>Chose:</strong> gpt-4.1-mini ($0.40 / $1.60). <strong>Why.</strong> A 6× cost reduction at no measurable quality loss for this task — Severstal class labels are a closed 4-way set with strong visual cues, not a free-form description. Validated on a 60-frame sample: agreement with gpt-4o was 58/60.</p>
+</section>
+<section id="cache-dhash-with-6-bit-hamming-radius-not-clip-embeddings" class="level3">
+<h3 class="anchored" data-anchor-id="cache-dhash-with-6-bit-hamming-radius-not-clip-embeddings">Cache — dHash with 6-bit Hamming radius, not CLIP embeddings</h3>
+<p><strong>Rejected:</strong> CLIP-image embeddings + cosine similarity (the “right” way to do perceptual cache). <strong>Chose:</strong> 64-bit difference-hash with a Hamming-distance ≤ 6 radius. <strong>Why.</strong> Severstal coil frames within a roll are <em>near-duplicates</em> (same physical strip moving under the camera at frame rate). dHash is designed for exactly this — pixel-level near-identity. CLIP would generalise too much (different rolls of the same defect class would collide). Ships at 47% hit-rate on Track C, contributes 0% to false positives.</p>
+</section>
+<section id="calibration-per-domain-τ-not-a-single-τ" class="level3">
+<h3 class="anchored" data-anchor-id="calibration-per-domain-τ-not-a-single-τ">Calibration — per-domain τ, not a single τ</h3>
+<p><strong>Rejected:</strong> A single z-threshold across both metal domains. <strong>Chose:</strong> <code>{severstal: -0.5, ksdd2: +1.0}</code>, persisted into the model summary. <strong>Why.</strong> PatchCore’s score scale depends on the texture statistics of the normal pool. KSDD2’s per-patch features cluster tightly; Severstal’s spread out. A single τ either over-escalates KSDD2 (kills the cost story) or under-escalates Severstal (kills recall). The Pareto curves on the <a href="./evaluation.html">evaluation page</a> make the asymmetry explicit.</p>
+</section>
+<section id="confidence-intervals-bootstrap-not-analytical-wilson-clopper-pearson" class="level3">
+<h3 class="anchored" data-anchor-id="confidence-intervals-bootstrap-not-analytical-wilson-clopper-pearson">Confidence intervals — bootstrap, not analytical Wilson / Clopper-Pearson</h3>
+<p><strong>Rejected:</strong> Wilson score interval on F1 (analytical, would assume F1 is binomially distributed). <strong>Chose:</strong> 1 000-resample non-parametric bootstrap. <strong>Why.</strong> F1 is a ratio of sums of two correlated counts; its sampling distribution at n=180 is not analytically tractable. The bootstrap makes no distributional assumption and reuses the same code path for F1, precision, and recall. Zero dependencies — implemented in <a href="https://github.com/j-jayes/Scratching-the-Surface/blob/main/src/cascade_defect/eval/stats.py"><code>stats.py</code></a> in ~30 lines.</p>
+</section>
+<section id="system-comparison-mcnemar-not-paired-t" class="level3">
+<h3 class="anchored" data-anchor-id="system-comparison-mcnemar-not-paired-t">System comparison — McNemar, not paired-t</h3>
+<p><strong>Rejected:</strong> Paired t-test on per-image correct/incorrect indicators. <strong>Chose:</strong> McNemar’s exact-binomial-when-n&lt;25 / chi-square-otherwise. <strong>Why.</strong> Per-image correctness is binary, not continuous; the paired-t assumes a normal difference distribution that doesn’t exist here. McNemar conditions on the discordant pairs only (cascade-correct + oracle-wrong vs the converse), which is the actual quantity of interest: “in the cases where the two systems disagree, who’s right more often?” Result on this build: <strong>34 cascade-only-correct vs 10 oracle-only-correct, p = 0.0005</strong>.</p>
+</section>
+<section id="robustness-per-image-stability-not-polarity-preservation" class="level3">
+<h3 class="anchored" data-anchor-id="robustness-per-image-stability-not-polarity-preservation">Robustness — per-image stability, not polarity preservation</h3>
+<p><strong>Rejected:</strong> “Defective z-scores stay above normal z-scores under every perturbation” (the obvious test). <strong>Chose:</strong> “Each image’s perturbed z-score stays within ±5σ of its clean z-score and remains finite.” <strong>Why.</strong> Severstal’s gate has Δμ +0.52σ — at n=3 the polarity test fails on <em>clean</em> images, let alone perturbed ones. The stability test catches what we actually care about (silent breakage in I/O, normalisation, or backbone weights) without making a false claim about Severstal separability.</p>
 
 
+</section>
 </section>
 
 </main> <!-- /main -->

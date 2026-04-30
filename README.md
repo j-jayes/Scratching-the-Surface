@@ -102,6 +102,17 @@ quarto preview docs/
 | Azure OpenAI (`gpt-4.1-mini`) | Few-shot edge-case classification with dHash cache |
 | Quarto | Portfolio website with Mermaid.js diagrams |
 
+## One-image demo (no infrastructure required)
+
+```powershell
+# After `uv sync` and weights are downloaded:
+uv run python scripts/demo_cascade.py `
+    data/splits_metal/cascade_test/ksdd2/defective/20042.png `
+    --domain ksdd2
+# → prints a per-layer trace (L1 z-score, L2 yolo class+confidence,
+#   L3 escalation note). Add --json for a machine-readable output.
+```
+
 ## Reproduce the Phase K headline numbers
 
 ```powershell
