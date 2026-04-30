@@ -1,6 +1,6 @@
 ---
 title: "Project Cascade Defect"
-subtitle: "A Cost-Effective ML Cascade Pipeline for Real-Time Rolled-Metal Surface Defect Detection"
+subtitle: "A cost-effective ML cascade for real-time rolled-metal surface defect detection"
 author: "j-jayes"
 date: today
 format:
@@ -10,88 +10,91 @@ format:
 
 ## Overview
 
-**Project Cascade Defect** is a proof-of-concept machine learning portfolio project that demonstrates how to optimise a defect-detection system for **inference cost, latency, and accuracy** simultaneously.
+**Project Cascade Defect** is an applied ML portfolio project that treats one
+question as the whole point: *if a multimodal LLM can already answer "is this
+metal sheet defective?", how do you build a system around it that makes the
+answer cheap enough to run on every camera frame?*
 
-Instead of running every factory camera frame through an expensive Multimodal Large Language Model (MLLM), we route frames through a three-layer **Cascade Architecture** — where most frames are handled cheaply and quickly, and only ambiguous edge-cases escalate to GPT-4o.
+The answer is a **three-layer cascade**. A tiny convolutional autoencoder
+discards anything that looks like clean metal. A small object detector
+(YOLOv8n) handles the easy positives. Only ambiguous frames escalate to an
+Azure OpenAI vision model. Most frames stop in milliseconds; only the genuinely
+hard ones cost cents.
 
 ::: {.column-page}
 ```{mermaid}
 %%| label: fig-overview
-%%| fig-cap: "High-level cascade pipeline overview"
+%%| fig-cap: "High-level cascade pipeline"
 flowchart LR
-    INPUT([🖼️ Raw Frame])
+    INPUT([Raw frame])
 
     subgraph L1["Layer 1 — Gatekeeper"]
-        AE["Conv Autoencoder\nMSE Reconstruction"]
-        T1{"MSE > τ?"}
+        AE["Conv Autoencoder<br/>MSE reconstruction"]
+        T1{MSE > τ?}
     end
 
     subgraph L2["Layer 2 — Specialist"]
-        YOLO["YOLOv8n\nInference"]
-        T2{"Conf ≥ 85%?"}
+        YOLO["YOLOv8n<br/>4-class detector"]
+        T2{conf ≥ 0.85?}
     end
 
     subgraph L3["Layer 3 — Oracle"]
-        GPT["GPT-4o\nFew-Shot Prompt"]
+        GPT["Azure OpenAI<br/>vision + few-shot"]
     end
 
-    DISCARD(["✅ No Defect"])
-    LOG(["📋 Log & Archive"])
+    DISCARD([No defect])
+    LOG([Log + label])
 
-    INPUT --> AE
-    AE --> T1
+    INPUT --> AE --> T1
     T1 -- No --> DISCARD
-    T1 -- Yes --> YOLO
-    YOLO --> T2
+    T1 -- Yes --> YOLO --> T2
     T2 -- Yes --> LOG
-    T2 -- No --> GPT
-    GPT --> LOG
+    T2 -- No --> GPT --> LOG
 
     style L1 fill:#dbeafe,stroke:#3b82f6
     style L2 fill:#dcfce7,stroke:#22c55e
     style L3 fill:#fef9c3,stroke:#eab308
 ```
 :::
-## Why a Cascade?
 
-| Approach | Cost per frame | Latency | Accuracy |
-|----------|---------------|---------|----------|
-| Pure MLLM (GPT-4o for everything) | ~$0.002 | ~3 s | ★★★★★ |
-| Pure Classical (YOLOv8 only) | ~$0.000001 | ~15 ms | ★★★★☆ |
-| **Cascade (this project)** | ~$0.0000015 | ~18 ms avg | ★★★★★ |
+## The data pivot
 
-The cascade architecture captures the best of both worlds: classical computer vision handles the 95%+ of "easy" cases in milliseconds, while GPT-4o is reserved for the rare edge cases where certainty matters most.
+Earlier iterations of this project trained on whatever surface-defect dataset
+was easiest to obtain — first NEU (a balanced 6-class **classification**
+benchmark with no defect-free frames), and briefly an electronics dataset
+(VisA / PCB1) that had the right *shape* of data but the wrong *domain*. Both
+made the autoencoder's gatekeeper role contrived: there was nothing for it to
+learn as "normal".
 
-## Key Technologies
+The current build uses two datasets that match the actual goal — *flag damage
+on rolled metal surfaces* — and that ship with **abundant defect-free
+imagery**:
 
-- **Model Training:** Azure Machine Learning (AML) on `Standard_NC6s_v3` compute
-- **Inference:** Azure Container Apps (ACA) with NVIDIA T4 GPU, scale-to-zero via KEDA
-- **Event Bus:** Azure Service Bus (decoupled queue between cascade layers)
-- **Storage:** Azure Data Lake Storage Gen2
-- **MLLM:** Azure OpenAI `gpt-4o` with Pydantic-enforced structured JSON output
-- **Package Manager:** `uv` (fast, reproducible Python dependency management)
-- **Website:** Quarto (this site — Mermaid.js diagrams, executable Python cells)
+| Dataset | Domain | Total | Normal | Defective |
+|---|---|---:|---:|---:|
+| **KSDD2** (Kolektor Surface-Defect Dataset 2) | Commutator metal surface | 3,335 | ~2,979 (89%) | ~356 |
+| **Severstal Steel Defect Detection** | Flat-rolled steel sheet | ~12,500 | ~5,900 (47%) | ~6,600 |
 
-## Project Structure
+Both contribute defect-free frames to the autoencoder's training pool;
+Severstal additionally supplies the bounding-box training signal for YOLO.
+KSDD2 defects are deliberately held out as an out-of-distribution test for the
+detector. See [Data Strategy](data-strategy.qmd) for the full split design.
 
-```
-cascade-defect/
-├── .agents/skills/          # Copilot domain-knowledge files
-├── .claude/plans/           # Project implementation plan
-├── .devcontainer/           # VS Code / Codespaces container config
-├── .pre-commit-config.yaml  # nbstripout + ruff hooks
-├── docs/                    # This Quarto website
-├── src/cascade_defect/      # Python source package
-│   ├── data/                # Dataset split utilities
-│   ├── layer1_autoencoder/  # Conv AE model, training, FastAPI app
-│   ├── layer2_yolo/         # YOLOv8 inference FastAPI app
-│   └── layer3_gpt4o/        # GPT-4o oracle FastAPI app
-├── tests/                   # pytest unit tests
-└── pyproject.toml           # uv-managed project config
-```
+## Why a cascade?
 
-## Quick Links
+| Approach | Cost / frame | Latency | Accuracy on classified frames |
+|----------|-------------:|--------:|-----:|
+| Pure MLLM (every frame) | ~$0.001 | ~3 s | ★★★★★ |
+| Pure YOLO (every frame) | ~$0.000001 | ~15 ms | ★★★★☆ |
+| **Cascade (this project)** | ~$0.00001 avg | ~25 ms median | ★★★★★ |
 
-- [Architecture →](architecture.qmd) — Detailed system design with Mermaid diagrams
-- [Data Strategy →](data-strategy.qmd) — Dataset splits and pseudo-labelling pipeline
-- [Evaluation →](evaluation.qmd) — Latency, cost, and accuracy benchmarks
+The cascade is the only architecture that buys you the MLLM's accuracy without
+its bill — and the only one whose economics improve as more of the camera feed
+turns out to be defect-free.
+
+## Quick links
+
+- [Architecture →](architecture.qmd) — system design and Azure topology
+- [Data Strategy →](data-strategy.qmd) — KSDD2 + Severstal combination plan
+- [Evaluation →](evaluation.qmd) — measured cost / latency / accuracy
+- [Inferences →](inferences.qmd) — frame-by-frame walkthroughs

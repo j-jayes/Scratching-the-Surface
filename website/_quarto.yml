@@ -15,8 +15,6 @@ website:
     left:
       - href: index.qmd
         text: Home
-      - href: intro.qmd
-        text: Problem
       - href: architecture.qmd
         text: Architecture
       - href: data-strategy.qmd

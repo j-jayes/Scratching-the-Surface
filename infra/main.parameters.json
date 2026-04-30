@@ -9,6 +9,7 @@
     "budgetAlertEmails": { "value": ["jonathan.jayes@nexergroup.com"] },
     "enableGpuWorkloadProfile": { "value": true },
     "deployOpenAi": { "value": true },
-    "oracleCapacity": { "value": 10 }
+    "oracleCapacity": { "value": 10 },
+    "deployAml": { "value": true }
   }
 }

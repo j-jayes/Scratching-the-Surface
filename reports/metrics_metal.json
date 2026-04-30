@@ -1,0 +1,140 @@
+{
+  "trace_path": "reports\\eval_cascade_metal.jsonl",
+  "n_total": 180,
+  "tracks": {
+    "A": {
+      "n": 60,
+      "n_positive_truth": 29,
+      "n_negative_truth": 30,
+      "tp": 23,
+      "fp": 19,
+      "tn": 11,
+      "fn": 6,
+      "uncertain": 1,
+      "error": 0,
+      "precision": 0.5476,
+      "recall": 0.7931,
+      "f1": 0.6479,
+      "n_dropped_by_l1": 17,
+      "l1_drop_rate_overall": 0.2833,
+      "l1_drop_rate_on_negatives": 0.3667,
+      "stopped_at_layer": {
+        "1": 17,
+        "3": 9,
+        "2": 34
+      },
+      "tokens_in": 23967,
+      "tokens_out": 324,
+      "oracle_cost_usd": 0.010105,
+      "cost_per_100k_frames_usd": 16.84,
+      "latency_ms": {
+        "mean": 1115.9,
+        "p50": 658,
+        "p95": 4120
+      },
+      "oracle_cache": {
+        "hits": 0,
+        "misses": 9,
+        "hit_rate": 0.0
+      },
+      "class_confusion_on_defectives": {
+        "scratch": 20,
+        "no_defect": 6,
+        "patch": 2,
+        "uncertain": 1,
+        "inclusion": 1
+      }
+    },
+    "B": {
+      "n": 60,
+      "n_positive_truth": 30,
+      "n_negative_truth": 30,
+      "tp": 25,
+      "fp": 1,
+      "tn": 29,
+      "fn": 5,
+      "uncertain": 0,
+      "error": 0,
+      "precision": 0.9615,
+      "recall": 0.8333,
+      "f1": 0.8929,
+      "n_dropped_by_l1": 31,
+      "l1_drop_rate_overall": 0.5167,
+      "l1_drop_rate_on_negatives": 0.9667,
+      "stopped_at_layer": {
+        "1": 31,
+        "3": 29
+      },
+      "tokens_in": 74033,
+      "tokens_out": 1190,
+      "oracle_cost_usd": 0.031517,
+      "cost_per_100k_frames_usd": 52.53,
+      "latency_ms": {
+        "mean": 1849.8,
+        "p50": 367,
+        "p95": 4616
+      },
+      "oracle_cache": {
+        "hits": 2,
+        "misses": 27,
+        "hit_rate": 0.069
+      },
+      "class_confusion_on_defectives": {
+        "scratch": 7,
+        "surface_anomaly": 14,
+        "no_defect": 5,
+        "inclusion": 1,
+        "patch": 3
+      }
+    },
+    "C": {
+      "n": 60,
+      "n_positive_truth": 60,
+      "n_negative_truth": 0,
+      "tp": 45,
+      "fp": 0,
+      "tn": 0,
+      "fn": 15,
+      "uncertain": 0,
+      "error": 0,
+      "precision": 1.0,
+      "recall": 0.75,
+      "f1": 0.8571,
+      "n_dropped_by_l1": 7,
+      "l1_drop_rate_overall": 0.1167,
+      "l1_drop_rate_on_negatives": 0.0,
+      "stopped_at_layer": {
+        "3": 40,
+        "2": 13,
+        "1": 7
+      },
+      "tokens_in": 57561,
+      "tokens_out": 887,
+      "oracle_cost_usd": 0.024444,
+      "cost_per_100k_frames_usd": 40.74,
+      "latency_ms": {
+        "mean": 1586.8,
+        "p50": 377,
+        "p95": 4513
+      },
+      "oracle_cache": {
+        "hits": 19,
+        "misses": 21,
+        "hit_rate": 0.475
+      },
+      "class_confusion_on_defectives": {
+        "surface_anomaly": 13,
+        "scratch": 26,
+        "inclusion": 3,
+        "no_defect": 15,
+        "patch": 2,
+        "pitting": 1
+      }
+    }
+  },
+  "pricing": {
+    "model": "gpt-4.1-mini",
+    "usd_per_1m_in": 0.4,
+    "usd_per_1m_out": 1.6
+  }
+}

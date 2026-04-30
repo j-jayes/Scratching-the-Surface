@@ -49,6 +49,9 @@ data/processed/*
 !data/processed/.gitkeep
 data/splits/*
 !data/splits/.gitkeep
+data/splits_metal/*
+!data/splits_metal/.gitkeep
+!data/splits_metal/manifest.json
 models/
 
 # MLflow
@@ -72,6 +75,11 @@ infra/**/*.json
 
 # Reports — keep summary metrics, drop large per-frame logs
 reports/*.jsonl
+reports/.*
+
+# Run logs
+logs/*
+!logs/.gitkeep
 
 # Ad-hoc model weight downloads at repo root (e.g. yolov8n.pt pretrained)
 /*.pt

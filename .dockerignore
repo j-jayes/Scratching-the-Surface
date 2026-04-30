@@ -10,12 +10,17 @@ notebooks/
 tests/
 infra/
 scripts/
+website/
 
-# Heavy data — only the few-shot seed (small) is allowed for layer3.
-data/raw/
-data/processed/
-data/splits/unlabelled/
-data/splits/test/
+# Heavy data - the image only needs src/ and pyproject.toml.
+data/
+models/
+logs/
+reports/
+yolov8n.pt
+*.pt
+*.pth
+*.tar.gz
 
 # Cache + tooling
 __pycache__/

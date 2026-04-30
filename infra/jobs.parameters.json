@@ -1,0 +1,17 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName":     { "value": "cascade-dev-aca-env" },
+    "acrName":             { "value": "cascadedevacr6ya7a3" },
+    "acrLoginServer":      { "value": "cascadedevacr6ya7a3.azurecr.io" },
+    "imageTag":            { "value": "latest" },
+    "trainerImageName":    { "value": "cascade-base" },
+    "storageAccountName":  { "value": "cascadedev6ya7a3px" },
+    "yoloUseGpu":          { "value": true },
+    "yoloIncludeKsdd2":    { "value": false },
+    "aeZThreshold":        { "value": "3.0" },
+    "replicaTimeoutSeconds": { "value": 14400 },
+    "mlflowTrackingUri":   { "value": "" }
+  }
+}

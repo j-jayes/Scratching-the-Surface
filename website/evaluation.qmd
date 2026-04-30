@@ -1,6 +1,6 @@
 ---
 title: "Evaluation"
-subtitle: "Measured latency, cost, and accuracy of the deployed cascade on real NEU data"
+subtitle: "Three tracks: in-domain, second-domain, OOD"
 date: today
 jupyter: cascade-defect
 execute:
@@ -14,229 +14,267 @@ execute:
 import json
 from pathlib import Path
 
-METRICS = json.loads(Path("../reports/metrics.json").read_text(encoding="utf-8"))
-CASCADE = METRICS["cascade"]
-ORACLE = METRICS["oracle_only"]
-PRICING = METRICS["pricing"]
-SAVINGS = METRICS.get("cost_savings_pct", 0.0)
+METRICS_METAL_PATH = Path("../reports/metrics_metal.json")
+METRICS_V1_PATH = Path("../reports/metrics.json")
+
+METAL = json.loads(METRICS_METAL_PATH.read_text(encoding="utf-8")) if METRICS_METAL_PATH.exists() else None
+V1 = json.loads(METRICS_V1_PATH.read_text(encoding="utf-8")) if METRICS_V1_PATH.exists() else None
 ```
 
-## What was measured
+## What is being measured
 
-A **stratified 60-image subset** of the held-out NEU-CLS golden test set
-(10 images per class, drawn from the 360-image test split) was sent through
-two architectures running on Azure:
+Three independent evaluation tracks, all run through the **same deployed
+router** (cascade) and the **same Oracle-only baseline** (every frame to
+Azure OpenAI). The point of running three tracks rather than one is to
+separate three distinct claims the architecture is making.
 
-- **Cascade** — `POST /predict` on the deployed Container Apps router
-  (Layer 1 AE → Layer 2 YOLOv8n → Layer 3 Azure OpenAI).
-- **Pure Oracle baseline** — every image sent directly to
-  `gpt-4.1-mini` with the same few-shot prompt the cascade uses.
+| Track | Test set | Layers exercised | Claim under test |
+|---|---|---|---|
+| **A — In-domain** | Severstal cascade_test (~2,500 imgs, ~50/50 normal/defective) | L1 + L2 + L3 | The cascade saves money on a realistic factory feed without losing accuracy. |
+| **B — Second domain** | KSDD2 cascade_test (1,250 imgs, ~89% normal) | L1 + L3 only | The autoencoder's "normal" notion generalises across two metal domains. |
+| **C — OOD detector** | KSDD2 defectives only | L2 standalone | Quantifies what YOLO misses when shown defects it wasn't trained on — the cost the Oracle backstops. |
 
-The dataset is the **real NEU surface defect dataset** (1,800 200×200 images,
-6 classes), pulled from the public HuggingFace mirror
-[`newguyme/neu_cls`](https://huggingface.co/datasets/newguyme/neu_cls)
-and split 18 seed / 1,422 unlabelled / 360 test by
-[`split.py`](../src/cascade_defect/data/split.py).
+## Track A — Severstal in-domain
 
-::: {.callout-note collapse="true"}
-## A note on the gatekeeper's training set
-NEU-CLS contains no "no-defect" class — every image is one of six defect
-types. The Layer 1 autoencoder was therefore trained on a **single class**
-(`rolled-in_scale`) and treats it as the "normal steel" reference. This is
-the closest substitute available; in production you would train on
-defect-free frames captured during a clean shift.
-
-A consequence is that `inclusion` and `rolled-in_scale` look "normal" to
-the AE — both have similarly low MSE — so the cascade short-circuits them
-at Layer 1. **In a real factory feed, that would be the correct behaviour
-on no-defect frames; here it counts against accuracy because every test
-image is a defect.** We report two accuracy numbers to make this honest.
-:::
-
-::: {.callout-note}
-Pricing is `gpt-4.1-mini` at \$`{python} PRICING["usd_per_1m_in"]`/1M input,
-\$`{python} PRICING["usd_per_1m_out"]`/1M output. The model was selected because
-it was the only AOAI vision-capable deployment with available TPM quota in
-West Europe at deploy time.
-:::
-
-## 1. Cascade routing distribution
+This is the headline result. With real negatives in the test set, the L1
+drop-rate finally counts as *correct behaviour* rather than as wrongly
+discarded defects.
 
 ```{python}
-#| label: fig-routing
-#| fig-cap: "Where each frame stops in the cascade"
-import matplotlib.pyplot as plt
-
-stops = {k: v for k, v in CASCADE["stopped_at_layer"].items() if k != "null"}
-labels = [f"Layer {k}" for k in sorted(stops)]
-values = [stops[k] for k in sorted(stops)]
-colours = ["#22c55e", "#eab308", "#ef4444"][: len(values)]
-
-fig, ax = plt.subplots(figsize=(7, 3.5))
-bars = ax.barh(labels, values, color=colours, edgecolor="white")
-for i, v in enumerate(values):
-    ax.text(v + 0.5, i, f"{v} ({v/CASCADE['n']:.0%})", va="center")
-ax.set_xlabel("Frames")
-ax.set_title(f"Stop-at-layer distribution (n={CASCADE['n']})")
-ax.invert_yaxis()
-plt.tight_layout()
-plt.show()
-```
-
-The autoencoder gatekeeper drops **`{python} f"{CASCADE['l1_drop_rate']:.0%}"`** of
-frames before they ever reach the Oracle. This is the entire point of the
-cascade — every dropped frame saves an Azure OpenAI call.
-
-## 2. Latency
-
-End-to-end client latency (curl → router → final JSON response) on **warm**
-Container Apps (idle replicas already up).
-
-```{python}
-#| label: tbl-latency
+#| label: track-a
 import pandas as pd
-df = pd.DataFrame({
-    "Architecture": ["Cascade (router)", "Pure Oracle"],
-    "Mean (ms)":   [CASCADE["latency_ms"]["mean"], ORACLE["latency_ms"]["mean"]],
-    "p50 (ms)":    [CASCADE["latency_ms"]["p50"],  ORACLE["latency_ms"]["p50"]],
-    "p95 (ms)":    [CASCADE["latency_ms"]["p95"],  ORACLE["latency_ms"]["p95"]],
-})
-df
+if METAL and "tracks" in METAL and "A" in METAL["tracks"]:
+    a = METAL["tracks"]["A"]
+    df = pd.DataFrame({
+        "Metric": [
+            "n", "Precision", "Recall", "F1",
+            "L1 drop rate (negatives only)",
+            "Mean latency (ms)", "USD / 100k frames",
+        ],
+        "Cascade (L1 PatchCore + L2 YOLO + L3 Oracle)": [
+            a["n"],
+            f"{a['precision']:.3f}",
+            f"{a['recall']:.3f}",
+            f"{a['f1']:.3f}",
+            f"{a['l1_drop_rate_on_negatives']:.3f}",
+            a["latency_ms"]["mean"],
+            a.get("cost_per_100k_frames_usd") or 0,
+        ],
+    })
+    df
+else:
+    print("Track A pending — re-run `eval/run_cascade_metal.py` after the Phase J training step.")
 ```
 
-Note the **bimodal cascade latency**: the median (`{python} CASCADE['latency_ms']['p50']` ms) is
-the AE-only fast path, while the p95 (`{python} CASCADE['latency_ms']['p95']` ms) reflects
-frames that escalate all the way to the Oracle. The mean is dominated by the
-Oracle-bound frames because each one costs ~3 s.
+**Acceptance bar:** F1 ≥ 0.70, L1 drop rate on negatives ≥ 0.80, cost
+advantage over Oracle-only ≥ 5×.
 
-::: {.callout-warning}
-## Cold-start penalty
-The first request after `min-replicas=0` scaling pays a cold-start penalty of
-~10–30 s while the AE / YOLO / Oracle containers pull and load model
-weights. This is **excluded** from the table above — production deployments
-that need sub-second p99 should set `min-replicas≥1` during shifts.
-:::
+## Track B — KSDD2 second-domain (AE + Oracle, no YOLO)
 
-## 3. Cost
+KSDD2 is a different metal domain. We deliberately *do not* invoke YOLO here
+— it would just emit Severstal-class noise. The cascade collapses to AE +
+Oracle. The question this track asks: *did the union-of-normals AE actually
+generalise, or did it just memorise Severstal?*
 
 ```{python}
-#| label: tbl-cost
-df = pd.DataFrame({
-    "Architecture": ["Cascade", "Pure Oracle"],
-    "Tokens in":   [CASCADE["tokens_in"], ORACLE["tokens_in"]],
-    "Tokens out":  [CASCADE["tokens_out"], ORACLE["tokens_out"]],
-    "USD (60 imgs)": [CASCADE["oracle_cost_usd"], ORACLE["oracle_cost_usd"]],
-    "USD / 100k frames": [CASCADE["cost_per_100k_frames_usd"],
-                          ORACLE["cost_per_100k_frames_usd"]],
-})
-df
+#| label: track-b
+if METAL and "tracks" in METAL and "B" in METAL["tracks"]:
+    b = METAL["tracks"]["B"]
+    df = pd.DataFrame({
+        "Metric": [
+            "n", "Precision", "Recall", "F1",
+            "L1 drop rate (negatives only)", "Mean latency (ms)",
+        ],
+        "Cascade (L1 PatchCore + L3 Oracle)": [
+            b["n"],
+            f"{b['precision']:.3f}",
+            f"{b['recall']:.3f}",
+            f"{b['f1']:.3f}",
+            f"{b['l1_drop_rate_on_negatives']:.3f}",
+            b["latency_ms"]["mean"],
+        ],
+    })
+    df
+else:
+    print("Track B pending.")
 ```
+
+**Acceptance bar:** F1 ≥ 0.65 — slightly looser than Track A because we are
+explicitly outside YOLO's class space.
+
+## Track C — OOD detector stress test
+
+A different question: how badly does the Severstal-trained YOLO miss KSDD2
+defects when run *standalone*? The number itself is uninteresting; the *gap*
+between Track C (YOLO alone) and Track B (AE + Oracle) is what justifies the
+Oracle being in the architecture at all.
 
 ```{python}
-#| label: fig-cost
-#| fig-cap: "Cost per 100,000 frames extrapolated from the 60-image run"
-fig, ax = plt.subplots(figsize=(6, 4))
-arch = ["Cascade", "Pure Oracle"]
-vals = [CASCADE["cost_per_100k_frames_usd"], ORACLE["cost_per_100k_frames_usd"]]
-bars = ax.bar(arch, vals, color=["#22c55e", "#ef4444"], edgecolor="white")
-for b, v in zip(bars, vals):
-    ax.text(b.get_x() + b.get_width()/2, v, f"${v:,.2f}",
-            ha="center", va="bottom", fontweight="bold")
-ax.set_ylabel("USD / 100,000 frames")
-ax.set_title(f"Cascade saves {SAVINGS:.0f}% vs pure Oracle")
-plt.tight_layout()
-plt.show()
+#| label: track-c
+if METAL and "tracks" in METAL and "C" in METAL["tracks"]:
+    c = METAL["tracks"]["C"]
+    df = pd.DataFrame({
+        "Metric": ["n (defectives only)", "Recall", "Precision", "L1 drop rate (overall)", "Mean latency (ms)"],
+        "Severstal-trained cascade on KSDD2 defects": [
+            c["n"],
+            f"{c['recall']:.3f}",
+            f"{c['precision']:.3f}",
+            f"{c['l1_drop_rate_overall']:.3f}",
+            c["latency_ms"]["mean"],
+        ],
+    })
+    df
+else:
+    print("Track C pending.")
 ```
 
-The cascade saves **`{python} f"{SAVINGS:.0f}%"`** even though the test set is
-100% defects — the AE drops over half of them (the ones that visually
-resemble its training class). On a real factory feed where the majority of
-frames are defect-free, savings would be substantially higher because
-**every** clean frame would be dropped at Layer 1.
-
-## 4. Accuracy — two honest numbers
-
-Because the test set has no true negatives, top-1 accuracy can be reported
-two ways:
-
-```{python}
-#| label: tbl-accuracy
-df = pd.DataFrame([
-    ("Cascade — overall (counts AE drops as wrong)", CASCADE["top1_accuracy_overall"], CASCADE["n"]),
-    ("Cascade — frames the cascade actually classified",
-     CASCADE["top1_accuracy_classified_only"], CASCADE["n_classified"]),
-    ("Pure Oracle", ORACLE["top1_accuracy"], ORACLE["n"]),
-], columns=["Architecture", "Top-1 accuracy", "n"])
-df.style.format({"Top-1 accuracy": "{:.1%}"})
-```
-
-The **conditional** accuracy is the meaningful one for the cascade: when the
-AE *does* hand a frame off to the Oracle, the Oracle gets it right
-`{python} f"{CASCADE['top1_accuracy_classified_only']:.0%}"` of the time
-(`{python} CASCADE['n_classified']` images). The pure Oracle baseline
-achieves `{python} f"{ORACLE['top1_accuracy']:.0%}"` over all
-`{python} ORACLE['n']` images for `{python} f"${ORACLE['cost_per_100k_frames_usd']:,.0f}"`/100k
-frames.
-
-## 5. Confusion matrix
-
-```{python}
-#| label: fig-confusion
-#| fig-cap: "Cascade confusion matrix on the real NEU test subset"
-import numpy as np
-classes = sorted(CASCADE["confusion"].keys())
-preds = sorted({p for row in CASCADE["confusion"].values() for p in row})
-M = np.array([[CASCADE["confusion"][t].get(p, 0) for p in preds] for t in classes])
-fig, ax = plt.subplots(figsize=(8, 5))
-im = ax.imshow(M, cmap="Blues")
-ax.set_xticks(range(len(preds)), preds, rotation=30, ha="right")
-ax.set_yticks(range(len(classes)), classes)
-ax.set_xlabel("Predicted (or 'no_defect' if AE short-circuits)")
-ax.set_ylabel("True")
-for i in range(len(classes)):
-    for j in range(len(preds)):
-        if M[i, j]:
-            ax.text(j, i, M[i, j], ha="center", va="center",
-                    color="white" if M[i, j] > M.max()/2 else "black")
-fig.colorbar(im, ax=ax)
-plt.tight_layout()
-plt.show()
-```
-
-Reading this:
-
-- **Diagonal cells** = correct classifications by the Oracle.
-- **`no_defect` column** = frames the AE short-circuited (would be a
-  true-negative on a real feed; counts as a miss here).
-- **Inclusion** is dropped 100% by the AE — its texture is too similar to
-  the training class. A defect-free training set would fix this.
-
-## 6. What the cascade buys you
-
-| Property | Pure Oracle | Cascade | Δ |
-|---|---:|---:|---:|
-| Cost / 100k frames | \$`{python} f"{ORACLE['cost_per_100k_frames_usd']:,.0f}"` | \$`{python} f"{CASCADE['cost_per_100k_frames_usd']:,.0f}"` | **−`{python} f"{SAVINGS:.0f}%"`** |
-| Median latency | `{python} ORACLE['latency_ms']['p50']` ms | `{python} CASCADE['latency_ms']['p50']` ms | fast path |
-| Accuracy on classified frames | `{python} f"{ORACLE['top1_accuracy']:.0%}"` | `{python} f"{CASCADE['top1_accuracy_classified_only']:.0%}"` | comparable |
-| Tokens billed | `{python} f"{ORACLE['tokens_in']:,}"` | `{python} f"{CASCADE['tokens_in']:,}"` | **−`{python} f"{(1-CASCADE['tokens_in']/max(ORACLE['tokens_in'],1))*100:.0f}%"`** |
-
-## 7. Reproducing
+## Reproducing
 
 ```bash
-# 1. Pull real NEU from public HF mirror (no auth required)
-uv run python -c "from cascade_defect.data.ingest import download_neu_from_hf; download_neu_from_hf()"
-uv run python -m cascade_defect.data.split
+# 1. Build the metal-surface split (KSDD2 + Severstal must be present locally).
+uv run python -m cascade_defect.data.split_metal
 
-# 2. Retrain Layer 1 AE on a single 'normal' class
-uv run python -m cascade_defect.layer1_autoencoder.train --normal-class rolled-in_scale --epochs 8
+# 2. Train the autoencoder on the union of normals.
+uv run python -m cascade_defect.layer1_autoencoder.train_metal --epochs 15
 
-# 3. Stratified 60-image cascade run (~3 min, ~$0.03)
-uv run python -m cascade_defect.eval.run_cascade --limit 60
+# 3. Build the PatchCore-lite memory banks (J.1 Tier-3 — the production scorer).
+uv run python -m cascade_defect.layer1_autoencoder.train_patchcore
 
-# 4. Pure-Oracle baseline on the same 60 images
-uv run python -m cascade_defect.eval.run_oracle_only --limit 60
+# 4. Sanity-check per-domain score separation (AE vs PatchCore).
+uv run python scripts/ae_metal_sanity.py
 
-# 5. Roll up reports/metrics.json + render this page
-uv run python -m cascade_defect.eval.metrics
-quarto render docs/
+# 5. Build the YOLO dataset on disk + train on Severstal defectives.
+uv run python -m cascade_defect.data.severstal_yolo
+uv run python -m cascade_defect.layer2_yolo.train_metal --epochs 50
+
+# 6. Run all three eval tracks locally with the calibrated K.2 thresholds
+#    and the K.4 perceptual-hash cache. --layers l1 l2 l3 incurs AOAI cost.
+uv run python -m cascade_defect.eval.run_cascade_metal \
+    --tracks A B C --layers l1 l2 l3 --limit-per-track 60 \
+    --z-severstal -0.5 --z-ksdd2 1.0 --use-cache \
+    --out reports/eval_cascade_metal_k1_calibrated.jsonl
+
+# 7. Sweep τ to (re-)find the cost knee per domain.
+uv run python -m cascade_defect.eval.threshold_sweep \
+    --trace reports/eval_cascade_metal_k1_calibrated.jsonl --persist-knee
+
+# 8. Roll up to reports/metrics_metal.json and re-render this page.
+Copy-Item reports/eval_cascade_metal_k1_calibrated.jsonl `
+    reports/eval_cascade_metal.jsonl -Force
+uv run python -m cascade_defect.eval.metrics_metal
+uv run python scripts/render_inference_panels_metal.py
+quarto render website/
 ```
+
+## Phase K — Calibration, Caching, and the production-YOLO uplift
+
+The headline numbers above were re-run after Phase J.4 swapped the smoke
+3-epoch CPU YOLO (mAP50 0.17) for the production 50-epoch / 640 px / T4
+GPU YOLO (mAP50 **0.50**), then re-calibrated by Phase K:
+
+* **K.1** — re-ran all three tracks against the new YOLO weights.
+* **K.2** — swept per-domain `τ` and picked the knee of the
+  `(escalation_rate, F1)` curve. Persisted into
+  [`models/patchcore_metal/summary.json`](https://github.com/j-jayes/Scratching-the-Surface/blob/main/models/patchcore_metal/summary.json).
+  KSDD2's PatchCore separates cleanly (knee `τ = 1.0`, F1 ≈ 0.94 just from
+  L1). Severstal's PatchCore *cannot* separate well at any `τ` (knee F1
+  caps at ≈ 0.69 on L1 alone) — which is exactly *why* the cascade has
+  Layers 2 and 3.
+* **K.4** — added a dHash perceptual-hash cache in front of the Oracle
+  ([`layer3_gpt4o/cache.py`](https://github.com/j-jayes/Scratching-the-Surface/blob/main/src/cascade_defect/layer3_gpt4o/cache.py)).
+  Severstal coil frames within a roll are near-duplicates; the cache
+  short-circuits the AOAI round-trip when a 64-bit fingerprint is within 6
+  bits of one already classified.
+
+```{python}
+#| label: k-calibration-table
+import pandas as pd
+
+rows = []
+if METAL and "tracks" in METAL:
+    for t in ("A", "B", "C"):
+        v = METAL["tracks"].get(t)
+        if not v:
+            continue
+        cache = v.get("oracle_cache", {})
+        rows.append({
+            "Track": t,
+            "n": v["n"],
+            "F1": round(v["f1"], 3),
+            "Recall": round(v["recall"], 3),
+            "Precision": round(v["precision"], 3),
+            "L1 drop (negs)": round(v["l1_drop_rate_on_negatives"], 3),
+            "USD / 100k frames": v.get("cost_per_100k_frames_usd") or 0,
+            "Cache hit-rate": round(cache.get("hit_rate", 0), 3),
+        })
+if rows:
+    pd.DataFrame(rows).set_index("Track")
+else:
+    print("Calibrated metrics pending.")
+```
+
+### AE → PatchCore → production YOLO (the honest progression story)
+
+Three iterations of Layer 1 / Layer 2, same KSDD2+Severstal evaluation,
+showing what each step bought:
+
+| Stage | Layer-1 scorer | Layer-2 detector | KSDD2 Δμ (def − normal) | Sev. Δμ | YOLO mAP50 |
+|---|---|---|---:|---:|---:|
+| Baseline (Phase I) | Conv autoencoder, image-mean MSE | YOLOv8n COCO-pretrained | +1.5σ | inverted | n/a (v1 was NEU, no real YOLO) |
+| J.1 | AE + per-domain patch-quantile contrast | YOLOv8n smoke (3 ep / 320 px CPU) | +1.93σ | −0.62σ | 0.17 |
+| **J.4 + K.2 (production)** | **PatchCore-lite** (frozen ResNet18 + kNN) | **YOLOv8n production** (50 ep / 640 px T4) | **+8.18σ** | **+0.52σ** | **0.50** |
+
+The AE swap fixed the Severstal inversion but did not produce a usable
+gate. The PatchCore swap rescued KSDD2 outright (Δμ went from 1.9σ to 8.2σ)
+but Severstal stays close to the noise floor — a fundamental property of
+rolled-steel imagery, not a bug. This is what motivates carrying L2+L3:
+the gate is allowed to be weak on Severstal because the cheap detector
+behind it is strong.
+
+### Per-class confusion on Track A defectives (the cascade's final call)
+
+```{python}
+#| label: track-a-confusion
+if METAL and "tracks" in METAL and "A" in METAL["tracks"]:
+    cm = METAL["tracks"]["A"].get("class_confusion_on_defectives", {})
+    if cm:
+        df = pd.DataFrame(
+            sorted(cm.items(), key=lambda x: -x[1]),
+            columns=["Cascade output class", "Count (true defectives)"],
+        ).set_index("Cascade output class")
+        df
+    else:
+        print("No defectives in Track A this run.")
+```
+
+The interesting cell is `no_defect`: those are the true Severstal defects
+the cascade missed. Their share is the recall ceiling — exactly the failure
+mode the K.4 cache *cannot* fix and the K.3 ablations (YOLOv8s, 1024 px)
+are designed to attack.
+
+## Appendix — v1 NEU numbers (for honesty)
+
+The earlier NEU build trained the autoencoder on a single defect class
+(`rolled-in_scale`) treated as a "normal" proxy, because NEU has no
+defect-free imagery at all. Those numbers are kept here as the *before*
+baseline; everything above is the *after*.
+
+```{python}
+#| label: v1-appendix
+if V1:
+    c = V1["cascade"]; o = V1["oracle_only"]
+    df = pd.DataFrame({
+        "Metric": ["n test images", "L1 drop rate", "Top-1 accuracy (overall)", "Top-1 accuracy (classified frames only)", "USD / 100k frames", "p50 latency (ms)"],
+        "Cascade":     [c["n"], c["l1_drop_rate"], c["top1_accuracy_overall"], c["top1_accuracy_classified_only"], c["cost_per_100k_frames_usd"], c["latency_ms"]["p50"]],
+        "Pure Oracle": [o["n"], None, o["top1_accuracy"], o["top1_accuracy"], o["cost_per_100k_frames_usd"], o["latency_ms"]["p50"]],
+    })
+    df.style.format(precision=3, na_rep="—")
+else:
+    print("v1 metrics not available.")
+```
+
+The headline lesson from v1: the *router* worked (100% accuracy on classified
+frames), but the *dataset* didn't exercise the autoencoder's strengths —
+NEU's lack of defect-free frames meant Layer 1 was guessing what "normal"
+looked like. The metal-surface refit fixes that at the data level, which is
+the only place it could be fixed.

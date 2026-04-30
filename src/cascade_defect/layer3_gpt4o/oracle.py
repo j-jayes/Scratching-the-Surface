@@ -24,21 +24,48 @@ NEU_CLASSES = [
     "rolled-in_scale",
     "scratches",
 ]
+# Phase J taxonomy. Severstal's 4 classes are the workhorse vocabulary; KSDD2
+# defects are surfaces nicks/dents not cleanly tied to a class so they map to
+# the catch-all ``surface_anomaly``. ``uncertain`` is the explicit reject
+# bucket the model can return when none of the above fits confidently — it
+# saves false-positive cost on edge cases. ``no_defect`` covers the negatives
+# the cascade still hands up when L1 fires on a clean frame.
+METAL_CLASSES = [
+    "pitting",
+    "inclusion",
+    "scratch",
+    "patch",
+    "surface_anomaly",
+]
 DefectClass = Literal[
+    # NEU (v1, kept for back-compat with the legacy NEU evaluation)
     "crazing",
     "inclusion",
     "patches",
     "pitted_surface",
     "rolled-in_scale",
     "scratches",
+    # Severstal + KSDD2 (v2 / Phase J)
+    "pitting",
+    "scratch",
+    "patch",
+    "surface_anomaly",
+    # Reject buckets
     "no_defect",
+    "uncertain",
 ]
 
 
 class DefectPrediction(BaseModel):
     """Structured JSON schema enforced on Oracle responses."""
 
-    defect_class: DefectClass = Field(description="One of the six NEU classes or 'no_defect'.")
+    defect_class: DefectClass = Field(
+        description=(
+            "One of the supported defect classes, 'no_defect' if the surface "
+            "is clean, or 'uncertain' if the image quality / framing prevents a "
+            "confident judgement."
+        )
+    )
     confidence: float = Field(ge=0.0, le=1.0, description="Subjective confidence 0–1.")
     reasoning: str = Field(description="One-sentence rationale.")
 
@@ -62,22 +89,53 @@ def get_deployment() -> str:
 # ──────────────────────────────────────────────────────────────────────────────
 # Few-shot prompt
 # ──────────────────────────────────────────────────────────────────────────────
-SYSTEM_PROMPT = (
+NEU_SYSTEM_PROMPT = (
     "You are an expert quality-control inspector for rolled steel manufacturing. "
     "You classify surface defects in greyscale steel images into one of six classes: "
     f"{', '.join(NEU_CLASSES)}. Use 'no_defect' if no defect is visible. "
+    "Use 'uncertain' if the image quality or framing prevents a confident judgement. "
     "You will see a few labelled reference examples followed by an unknown image. "
     "Respond ONLY in the required JSON schema."
 )
+
+METAL_SYSTEM_PROMPT = (
+    "You are an expert quality-control inspector for industrial metal surfaces "
+    "(flat-rolled steel sheet and machined commutator parts). You classify defects "
+    f"into one of these classes: {', '.join(METAL_CLASSES)}. "
+    "Definitions:\n"
+    "  - pitting: small dark spots/holes in the surface\n"
+    "  - inclusion: foreign material embedded in the steel\n"
+    "  - scratch: long thin linear marks\n"
+    "  - patch: large discoloured or rolled-in regions\n"
+    "  - surface_anomaly: any other visible defect that does not fit the above\n"
+    "Use 'no_defect' if the surface is clean. "
+    "Use 'uncertain' if the image quality, framing, or lighting prevents a "
+    "confident judgement — prefer this over guessing. "
+    "You will see labelled reference examples followed by an unknown image. "
+    "Respond ONLY in the required JSON schema."
+)
+
+# Default for back-compat with v1 callers.
+SYSTEM_PROMPT = NEU_SYSTEM_PROMPT
+
+
+def _system_prompt_for(domain: str | None) -> str:
+    if not domain:
+        return SYSTEM_PROMPT
+    return METAL_SYSTEM_PROMPT if domain.lower() in {"ksdd2", "severstal", "metal"} else NEU_SYSTEM_PROMPT
 
 
 def _b64(path: Path) -> str:
     return base64.b64encode(path.read_bytes()).decode()
 
 
-def build_messages(image_path: Path, seed_dir: Path) -> list[dict]:
-    """Build the multimodal message list with few-shot exemplars + query image."""
-    messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
+def build_messages(image_path: Path, seed_dir: Path, *, domain: str | None = None) -> list[dict]:
+    """Build the multimodal message list with few-shot exemplars + query image.
+
+    ``domain`` selects the system prompt (NEU vs metal/Severstal+KSDD2). When
+    omitted, the legacy NEU prompt is used.
+    """
+    messages: list[dict] = [{"role": "system", "content": _system_prompt_for(domain)}]
 
     if seed_dir.exists():
         for class_dir in sorted(p for p in seed_dir.iterdir() if p.is_dir()):
@@ -120,12 +178,14 @@ def build_messages(image_path: Path, seed_dir: Path) -> list[dict]:
     return messages
 
 
-def predict(image_path: Path, seed_dir: Path) -> tuple[DefectPrediction, dict]:
+def predict(
+    image_path: Path, seed_dir: Path, *, domain: str | None = None
+) -> tuple[DefectPrediction, dict]:
     """Single-image prediction. Returns (parsed prediction, raw usage dict)."""
     client = get_client()
     response = client.beta.chat.completions.parse(
         model=get_deployment(),
-        messages=build_messages(image_path, seed_dir),
+        messages=build_messages(image_path, seed_dir, domain=domain),
         response_format=DefectPrediction,
         max_tokens=200,
         temperature=0,

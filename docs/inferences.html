@@ -6,6 +6,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
+<meta name="dcterms.date" content="2026-04-30">
 
 <title>Inference walkthroughs – Project Cascade Defect</title>
 <style>
@@ -46,9 +47,6 @@ ul.task-list li input[type="checkbox"] {
 <link href="site_libs/bootstrap/bootstrap-6c17f5b0fb68843ed4719f05c4fa2958.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
 <link href="site_libs/bootstrap/bootstrap-dark-3acd9f2b5eccf98692d400b1b7990e0b.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
 <link href="site_libs/bootstrap/bootstrap-6c17f5b0fb68843ed4719f05c4fa2958.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
-<script src="site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
-<link href="site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
-<link href="site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -267,10 +265,6 @@ ul.task-list li input[type="checkbox"] {
 <span class="menu-text">Home</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./intro.html"> 
-<span class="menu-text">Problem</span></a>
-  </li>  
-  <li class="nav-item">
     <a class="nav-link" href="./architecture.html"> 
 <span class="menu-text">Architecture</span></a>
   </li>  
@@ -310,21 +304,18 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#layer-1-short-circuit-the-cheap-path" id="toc-layer-1-short-circuit-the-cheap-path" class="nav-link active" data-scroll-target="#layer-1-short-circuit-the-cheap-path">1. Layer-1 short-circuit — the cheap path</a></li>
-  <li><a href="#full-cascade-l1-l2-l3-the-oracle-nails-it" id="toc-full-cascade-l1-l2-l3-the-oracle-nails-it" class="nav-link" data-scroll-target="#full-cascade-l1-l2-l3-the-oracle-nails-it">2. Full cascade L1 → L2 → L3 — the Oracle nails it</a></li>
-  <li><a href="#same-path-different-defect-class" id="toc-same-path-different-defect-class" class="nav-link" data-scroll-target="#same-path-different-defect-class">3. Same path, different defect class</a></li>
-  <li><a href="#what-to-take-from-these-three-frames" id="toc-what-to-take-from-these-three-frames" class="nav-link" data-scroll-target="#what-to-take-from-these-three-frames">What to take from these three frames</a></li>
+  <li><a href="#reading-guide" id="toc-reading-guide" class="nav-link active" data-scroll-target="#reading-guide">Reading guide</a></li>
   </ul>
 </nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content">
+<main class="content page-columns page-full" id="quarto-document-content">
 
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
 <h1 class="title">Inference walkthroughs</h1>
-<p class="subtitle lead">Three real frames, end-to-end through the deployed cascade</p>
+<p class="subtitle lead">What the cascade actually sees, layer by layer</p>
 </div>
 
 
@@ -332,6 +323,12 @@ ul.task-list li input[type="checkbox"] {
 <div class="quarto-title-meta">
 
     
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">April 30, 2026</p>
+    </div>
+  </div>
   
     
   </div>
@@ -341,227 +338,147 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<p>These are real responses from the live router on three hand-picked test frames. For each example we show, side-by-side:</p>
+<p>This page walks through three frames from the production cascade — one for each behaviour the architecture is designed to produce. Every panel is generated from the actual end-to-end trace at <a href="https://github.com/j-jayes/Scratching-the-Surface/blob/main/reports"><code>reports/eval_cascade_metal_k1_calibrated.jsonl</code></a> by <a href="https://github.com/j-jayes/Scratching-the-Surface/blob/main/scripts/render_inference_panels_metal.py"><code>scripts/render_inference_panels_metal.py</code></a>.</p>
+<p>For each example you get three panels:</p>
 <ol type="1">
-<li><strong>Input</strong> — the 200×200 NEU test image as the camera “sees” it.</li>
-<li><strong>L1 reconstruction</strong> — what the autoencoder thinks the surface <em>should</em> look like. If this is close to the input, MSE is low and the frame exits the cascade in milliseconds.</li>
-<li><strong>L1 difference heatmap</strong> — <code>|input − reconstruction|</code>, brighter = AE was more surprised. This is what the gatekeeper actually keys off.</li>
-<li><strong>L2 detection overlay</strong> — top-3 YOLO bounding boxes (red = #1 by confidence). The v1 YOLO is the COCO-pretrained YOLOv8n; its outputs are deliberately shown unedited so the architectural reason for L3’s existence is visible.</li>
+<li><strong>Input</strong> — the raw frame as the camera saw it, resized for display.</li>
+<li><strong>PatchCore heatmap</strong> — per-patch cosine distance to the nearest neighbours in the domain memory bank, overlaid in inferno colourmap. Bright regions are “looks unlike anything in the normal-distribution training pool”.</li>
+<li><strong>YOLO overlay</strong> — top-3 detections from the production <code>models/yolo_metal/best.pt</code> (mAP50 0.50, trained 50 ep / 640 px on a T4 in Phase J.4). Red is the highest-confidence box, amber are runners-up.</li>
 </ol>
-<p>The textual block under each panel reproduces the exact router trace from <a href="https://github.com/j-jayes/Scratching-the-Surface/blob/main/reports/metrics.json">reports/eval_cascade.jsonl</a> plus the GPT-4.1-mini reasoning string when L3 was invoked.</p>
-<hr>
-<section id="layer-1-short-circuit-the-cheap-path" class="level2">
-<h2 class="anchored" data-anchor-id="layer-1-short-circuit-the-cheap-path">1. Layer-1 short-circuit — the cheap path</h2>
-<div id="fig-l1-stop" class="quarto-layout-panel">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-l1-stop-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<p>The trace beneath each example is the literal router output — same code paths the live ACA app exercises, just re-run in-process for cheaper iteration.</p>
+<div id="render-examples" class="cell page-columns page-full" data-execution_count="2">
+<section id="l1-fast-path-clean-steel-gated-in-500-ms" class="level2 page-columns page-full">
+<h2 class="anchored" data-anchor-id="l1-fast-path-clean-steel-gated-in-500-ms">L1 fast path — clean steel, gated in &lt;500 ms</h2>
+<p><em>Track A, domain <code>severstal</code>, true polarity <code>normal</code>, router stopped at L1 (end-to-end 527 ms).</em></p>
+<p>Severstal in-domain. PatchCore reconstructs the surface below the calibrated z-threshold, the cascade returns <code>no_defect</code> immediately, no L2 / L3 cost. Roughly 95 % of a real factory feed looks like this.</p>
+<div class="column-page">
+<div class="quarto-layout-panel" data-layout-ncol="3">
 <div class="quarto-layout-row">
-<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: flex-start;">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><a href="assets/inferences/01_l1_dropped_inclusion/input.jpg" class="lightbox" data-gallery="ex1" title="Input — inclusion/img_001.jpg"><img src="assets/inferences/01_l1_dropped_inclusion/input.jpg" class="img-fluid figure-img"></a></p>
-<figcaption>Input — <code>inclusion/img_001.jpg</code></figcaption>
-</figure>
-</div>
-</div>
-<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: flex-start;">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><a href="assets/inferences/01_l1_dropped_inclusion/recon.jpg" class="lightbox" data-gallery="ex1" title="L1 reconstruction"><img src="assets/inferences/01_l1_dropped_inclusion/recon.jpg" class="img-fluid figure-img"></a></p>
-<figcaption>L1 reconstruction</figcaption>
-</figure>
-</div>
-</div>
-<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: flex-start;">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><a href="assets/inferences/01_l1_dropped_inclusion/diff.jpg" class="lightbox" data-gallery="ex1" title="L1 diff heatmap"><img src="assets/inferences/01_l1_dropped_inclusion/diff.jpg" class="img-fluid figure-img"></a></p>
-<figcaption>L1 diff heatmap</figcaption>
-</figure>
-</div>
-</div>
-<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: flex-start;">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><a href="assets/inferences/01_l1_dropped_inclusion/yolo.jpg" class="lightbox" data-gallery="ex1" title="L2 (not invoked) — COCO-YOLO sanity check"><img src="assets/inferences/01_l1_dropped_inclusion/yolo.jpg" class="img-fluid figure-img"></a></p>
-<figcaption>L2 (not invoked) — COCO-YOLO sanity check</figcaption>
-</figure>
+<div class="quarto-layout-cell" style="flex-basis: 33.3%;justify-content: flex-start;">
+<p><img src="assets/inferences_metal/01_severstal_normal_l1_drop/input.jpg" class="img-fluid" alt="Input frame"> <img src="assets/inferences_metal/01_severstal_normal_l1_drop/heatmap.jpg" class="img-fluid" alt="PatchCore anomaly heatmap (p99 score 0.171)"> <img src="assets/inferences_metal/01_severstal_normal_l1_drop/yolo.jpg" class="img-fluid" alt="YOLO production detections (n=13)"></p>
 </div>
 </div>
 </div>
 </div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-l1-stop-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;1: Layer-1 reconstruction is near-perfect. MSE is well below threshold, so the frame exits in 65 ms without ever touching L2 or L3.
-</figcaption>
-</figure>
-</div>
-<blockquote class="blockquote">
-<p><strong>Router trace</strong> (true label: <code>inclusion</code>, decision: <code>no_defect</code>, stopped at L1, total 65 ms)</p>
-<ul>
-<li><strong>L1</strong> → <code>no_defect</code> · MSE 0.000931 · threshold 0.0067</li>
-</ul>
-<p><em>Honest reading.</em> This is a defective frame the cascade <strong>incorrectly</strong> dropped. NEU’s inclusion class happens to look “normal-ish” against the <code>rolled-in_scale</code> proxy the AE was trained on. The cascade plumbing did its job — speed-wise it’s exactly right — but the underlying AE has no genuine “normal” class to compare against. This single failure mode is what motivates the <a href="https://github.com/j-jayes/Scratching-the-Surface/blob/main/.claude/plans/cascade_defect_plan.md#phase-j--visa-extension-the-right-shape-of-data-demo">Phase J swap to VisA</a>.</p>
-</blockquote>
-<hr>
-</section>
-<section id="full-cascade-l1-l2-l3-the-oracle-nails-it" class="level2">
-<h2 class="anchored" data-anchor-id="full-cascade-l1-l2-l3-the-oracle-nails-it">2. Full cascade L1 → L2 → L3 — the Oracle nails it</h2>
-<div id="fig-l3-crazing" class="quarto-layout-panel">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-l3-crazing-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div class="quarto-layout-row">
-<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: flex-start;">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><a href="assets/inferences/02_l3_oracle_crazing/input.jpg" class="lightbox" data-gallery="ex2" title="Input — crazing/img_005.jpg"><img src="assets/inferences/02_l3_oracle_crazing/input.jpg" class="img-fluid figure-img"></a></p>
-<figcaption>Input — <code>crazing/img_005.jpg</code></figcaption>
-</figure>
-</div>
-</div>
-<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: flex-start;">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><a href="assets/inferences/02_l3_oracle_crazing/recon.jpg" class="lightbox" data-gallery="ex2" title="L1 reconstruction"><img src="assets/inferences/02_l3_oracle_crazing/recon.jpg" class="img-fluid figure-img"></a></p>
-<figcaption>L1 reconstruction</figcaption>
-</figure>
-</div>
-</div>
-<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: flex-start;">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><a href="assets/inferences/02_l3_oracle_crazing/diff.jpg" class="lightbox" data-gallery="ex2" title="L1 diff heatmap (clearly noisy across the network of cracks)"><img src="assets/inferences/02_l3_oracle_crazing/diff.jpg" class="img-fluid figure-img"></a></p>
-<figcaption>L1 diff heatmap (clearly noisy across the network of cracks)</figcaption>
-</figure>
-</div>
-</div>
-<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: flex-start;">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><a href="assets/inferences/02_l3_oracle_crazing/yolo.jpg" class="lightbox" data-gallery="ex2" title="L2 — top-3 YOLO boxes (cat, person, cat); not defect-trained"><img src="assets/inferences/02_l3_oracle_crazing/yolo.jpg" class="img-fluid figure-img"></a></p>
-<figcaption>L2 — top-3 YOLO boxes (<code>cat</code>, <code>person</code>, <code>cat</code>); not defect-trained</figcaption>
-</figure>
-</div>
-</div>
-</div>
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-l3-crazing-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;2: The AE flags the frame, the COCO-YOLO returns nonsense at very low confidence, the router escalates to the Oracle, GPT-4.1-mini gets it right.
-</figcaption>
-</figure>
-</div>
-<blockquote class="blockquote">
-<p><strong>Router trace</strong> (true label: <code>crazing</code>, decision: <code>defect</code>, stopped at L3, total 55,431 ms)</p>
-<ul>
-<li><strong>L1</strong> → <code>defect_candidate</code> · MSE 0.00877 (&gt; τ=0.0067) · escalate</li>
-<li><strong>L2</strong> → <code>defect_detected</code> class=<code>cat</code> confidence=<code>0.012</code> (COCO-YOLO is not defect-trained — confidence below escalate-threshold 0.7 → escalate)</li>
-<li><strong>L3</strong> → <code>defect</code> class=<code>crazing</code> confidence=<code>0.95</code> · 2,574 tokens · <code>"The image shows fine network-like cracks typical of crazing defects."</code></li>
-</ul>
-<p><em>What this shows.</em> Layer 2’s failure mode is the actual reason the Oracle exists. Until YOLO is fine-tuned on real defect bounding boxes (Phase F.1, queued for Phase J), every L1-positive frame escalates to L3. That is expensive and slow — <em>but it is correct</em>, and the router design means the moment YOLO gets retrained, cost and latency drop without any other code change.</p>
-</blockquote>
-<hr>
-</section>
-<section id="same-path-different-defect-class" class="level2">
-<h2 class="anchored" data-anchor-id="same-path-different-defect-class">3. Same path, different defect class</h2>
-<div id="fig-l3-patches" class="quarto-layout-panel">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-l3-patches-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div class="quarto-layout-row">
-<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: flex-start;">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><a href="assets/inferences/03_l3_oracle_patches/input.jpg" class="lightbox" data-gallery="ex3" title="Input — patches/img_000.jpg"><img src="assets/inferences/03_l3_oracle_patches/input.jpg" class="img-fluid figure-img"></a></p>
-<figcaption>Input — <code>patches/img_000.jpg</code></figcaption>
-</figure>
-</div>
-</div>
-<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: flex-start;">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><a href="assets/inferences/03_l3_oracle_patches/recon.jpg" class="lightbox" data-gallery="ex3" title="L1 reconstruction (struggles on the dark patches)"><img src="assets/inferences/03_l3_oracle_patches/recon.jpg" class="img-fluid figure-img"></a></p>
-<figcaption>L1 reconstruction (struggles on the dark patches)</figcaption>
-</figure>
-</div>
-</div>
-<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: flex-start;">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><a href="assets/inferences/03_l3_oracle_patches/diff.jpg" class="lightbox" data-gallery="ex3" title="L1 diff heatmap (hot wherever the patches are)"><img src="assets/inferences/03_l3_oracle_patches/diff.jpg" class="img-fluid figure-img"></a></p>
-<figcaption>L1 diff heatmap (hot wherever the patches are)</figcaption>
-</figure>
-</div>
-</div>
-<div class="quarto-layout-cell" style="flex-basis: 25.0%;justify-content: flex-start;">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><a href="assets/inferences/03_l3_oracle_patches/yolo.jpg" class="lightbox" data-gallery="ex3" title="L2 — top-3 boxes still off-domain"><img src="assets/inferences/03_l3_oracle_patches/yolo.jpg" class="img-fluid figure-img"></a></p>
-<figcaption>L2 — top-3 boxes still off-domain</figcaption>
-</figure>
-</div>
-</div>
-</div>
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-l3-patches-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;3: Same routing path, different defect class — proof the Oracle generalises across the six NEU categories from a single 6-shot prompt.
-</figcaption>
-</figure>
-</div>
-<blockquote class="blockquote">
-<p><strong>Router trace</strong> (true label: <code>patches</code>, decision: <code>defect</code>, stopped at L3)</p>
-<ul>
-<li><strong>L1</strong> → <code>defect_candidate</code> · MSE 0.0263 (4× threshold) · escalate</li>
-<li><strong>L2</strong> → <code>defect_detected</code> class=<code>cat</code> confidence=<code>0.103</code> (still off-domain) · escalate</li>
-<li><strong>L3</strong> → <code>defect</code> class=<code>patches</code> confidence=<code>0.95</code> · 2,577 tokens · <code>"The image shows irregular dark areas with diffuse edges similar to the reference examples of patches."</code></li>
-</ul>
-<p><em>What this shows.</em> The router is class-agnostic. All six defect classes flow through the same logic; only the L3 system prompt encodes domain vocabulary. Adding a seventh class for v2 would mean adding one few-shot exemplar and one Pydantic enum value — no router or container changes.</p>
-</blockquote>
-<hr>
-</section>
-<section id="what-to-take-from-these-three-frames" class="level2">
-<h2 class="anchored" data-anchor-id="what-to-take-from-these-three-frames">What to take from these three frames</h2>
-<table class="caption-top table">
+<p><strong>Router trace</strong></p>
+<table class="caption-top table table-sm table-striped small">
 <thead>
 <tr class="header">
-<th></th>
-<th>Frame 1 (inclusion)</th>
-<th>Frame 2 (crazing)</th>
-<th>Frame 3 (patches)</th>
+<th>Layer</th>
+<th>Decision</th>
+<th>Class</th>
+<th>Score</th>
+<th>Latency</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>Stopped at</td>
-<td><strong>L1</strong></td>
-<td><strong>L3</strong></td>
-<td><strong>L3</strong></td>
-</tr>
-<tr class="even">
-<td>Wall-clock</td>
-<td>65 ms</td>
-<td>55.4 s*</td>
-<td>~55 s*</td>
-</tr>
-<tr class="odd">
-<td>Cost (USD)</td>
-<td>$0</td>
-<td>~$0.0005</td>
-<td>~$0.0005</td>
-</tr>
-<tr class="even">
-<td>Decision</td>
-<td>wrong (false negative)</td>
-<td><strong>correct</strong></td>
-<td><strong>correct</strong></td>
+<td>L1</td>
+<td>no_defect</td>
+<td>-</td>
+<td>z=-1.03 (τ=-0.5)</td>
+<td>527 ms</td>
 </tr>
 </tbody>
 </table>
-<p>* L3 wall-clock includes a cold-start on Azure Container Apps; warm L3 latency runs ~2 s. The <a href="./evaluation.html">Evaluation page</a> reports p50/p95 over the full 60-image run.</p>
-<p>The pattern across all 60 evaluation frames matches what these three illustrate:</p>
+</section>
+<section id="l2-production-yolo-defect-classified-no-oracle-bill" class="level2 page-columns page-full">
+<h2 class="anchored" data-anchor-id="l2-production-yolo-defect-classified-no-oracle-bill">L2 production YOLO — defect classified, no Oracle bill</h2>
+<p><em>Track A, domain <code>severstal</code>, true polarity <code>defective</code>, router stopped at L2 (end-to-end 430 ms).</em></p>
+<p>Severstal defective frame. PatchCore escalates at L1, the production YOLO (mAP50 0.50, trained 50 ep / 640 px on T4) returns a confident detection ≥ 0.5, the cascade short-circuits at L2 — no AOAI tokens spent. This is what the J.4 GPU retrain buys versus the smoke YOLO.</p>
+<div class="column-page">
+<div class="quarto-layout-panel" data-layout-ncol="3">
+<div class="quarto-layout-row">
+<div class="quarto-layout-cell" style="flex-basis: 33.3%;justify-content: flex-start;">
+<p><img src="assets/inferences_metal/02_severstal_defect_l2_yolo/input.jpg" class="img-fluid" alt="Input frame"> <img src="assets/inferences_metal/02_severstal_defect_l2_yolo/heatmap.jpg" class="img-fluid" alt="PatchCore anomaly heatmap (p99 score 0.218)"> <img src="assets/inferences_metal/02_severstal_defect_l2_yolo/yolo.jpg" class="img-fluid" alt="YOLO production detections (n=29)"></p>
+</div>
+</div>
+</div>
+</div>
+<p><strong>Router trace</strong></p>
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th>Layer</th>
+<th>Decision</th>
+<th>Class</th>
+<th>Score</th>
+<th>Latency</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>L1</td>
+<td>defect</td>
+<td>-</td>
+<td>z=-0.04 (τ=-0.5)</td>
+<td>403 ms</td>
+</tr>
+<tr class="even">
+<td>L2</td>
+<td>defect</td>
+<td>scratch</td>
+<td>conf=0.65, n=3</td>
+<td>26 ms</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="l3-oracle-backstop-ksdd2-ood-defect-ae-escalates" class="level2 page-columns page-full">
+<h2 class="anchored" data-anchor-id="l3-oracle-backstop-ksdd2-ood-defect-ae-escalates">L3 Oracle backstop — KSDD2 OOD defect, AE escalates</h2>
+<p><em>Track B, domain <code>ksdd2</code>, true polarity <code>defective</code>, router stopped at L3 (end-to-end 3415 ms).</em></p>
+<p>KSDD2 (commutator surfaces) is a different metal domain — the Severstal-trained YOLO has no class for it, so the router skips L2 by design. PatchCore flags the anomaly, the Oracle classifies it as <code>surface_anomaly</code> with a one-line rationale. This is the architectural payoff: pay the AOAI token cost only on frames where the cheap layers can’t decide.</p>
+<div class="column-page">
+<div class="quarto-layout-panel" data-layout-ncol="3">
+<div class="quarto-layout-row">
+<div class="quarto-layout-cell" style="flex-basis: 33.3%;justify-content: flex-start;">
+<p><img src="assets/inferences_metal/03_ksdd2_defect_l3_oracle/input.jpg" class="img-fluid" alt="Input frame"> <img src="assets/inferences_metal/03_ksdd2_defect_l3_oracle/heatmap.jpg" class="img-fluid" alt="PatchCore anomaly heatmap (p99 score 0.402)"> <img src="assets/inferences_metal/03_ksdd2_defect_l3_oracle/yolo.jpg" class="img-fluid" alt="YOLO production detections (n=67)"></p>
+</div>
+</div>
+</div>
+</div>
+<p><strong>Router trace</strong></p>
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th>Layer</th>
+<th>Decision</th>
+<th>Class</th>
+<th>Score</th>
+<th>Latency</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>L1</td>
+<td>defect</td>
+<td>-</td>
+<td>z=16.33 (τ=1.0)</td>
+<td>254 ms</td>
+</tr>
+<tr class="even">
+<td>L3</td>
+<td>scratch</td>
+<td>scratch</td>
+<td>conf=0.85</td>
+<td>3161 ms</td>
+</tr>
+</tbody>
+</table>
+<blockquote class="blockquote">
+<p><strong>Oracle reasoning:</strong> <em>The image shows a long, thin, bright linear mark consistent with a scratch defect on the metal surface.</em></p>
+</blockquote>
+</section>
+</div>
+<section id="reading-guide" class="level2">
+<h2 class="anchored" data-anchor-id="reading-guide">Reading guide</h2>
+<p>When inspecting the panels:</p>
 <ul>
-<li>The L1 short-circuit is <strong>fast and cheap</strong> but its accuracy is bounded by what the AE has seen as “normal”. On NEU, that ceiling is low.</li>
-<li>L2 is <strong>currently a no-op</strong> that exists structurally — its outputs are sane only on COCO classes. Phase J fixes this with proper bbox training.</li>
-<li>L3 is <strong>slow and expensive</strong> but, on every frame the router actually commits to it, correct (27/27 in the v1 run).</li>
+<li><strong>PatchCore heatmaps on Track A defectives</strong> should spotlight the region YOLO subsequently boxes. If the bright region sits anywhere YOLO ignores, the per-domain <code>τ</code> is too tight.</li>
+<li><strong>Heatmaps on Track A normals</strong> should be mostly cold. Hot patches on clean steel are a sign the calibration was done against the wrong distribution.</li>
+<li><strong>Oracle reasoning strings</strong> should reference the visible defect type rather than generic “surface irregularity” boilerplate. The few-shot prompt in <a href="https://github.com/j-jayes/Scratching-the-Surface/blob/main/src/cascade_defect/layer3_gpt4o/oracle.py"><code>oracle.py</code></a> was rewritten in J.2 around the Severstal+KSDD2 taxonomy specifically to ground the model.</li>
+<li><strong>YOLO box colours</strong> — red is the top detection, amber are runners-up. Track B (KSDD2) frames are deliberately out-of-distribution for the Severstal-trained YOLO; expect noisy class labels that the Oracle then corrects.</li>
 </ul>
-<p>The cost-savings story (55%, 100% accuracy on classified frames) survives the dataset critique because it is a property of the <em>router</em>, not of the v1 dataset. The Oracle is invoked only when needed; that’s the architectural win. Phase J should push the L1 drop rate from 53% to 80%+, which is where the cost ratio gets really interesting.</p>
 
 
 </section>
@@ -1001,38 +918,6 @@ Figure&nbsp;3: Same routing path, different defect class — proof the Oracle ge
     </div>
   </div>
 </footer>
-<script>var lightboxQuarto = GLightbox({"closeEffect":"zoom","descPosition":"bottom","loop":false,"openEffect":"zoom","selector":".lightbox"});
-(function() {
-  let previousOnload = window.onload;
-  window.onload = () => {
-    if (previousOnload) {
-      previousOnload();
-    }
-    lightboxQuarto.on('slide_before_load', (data) => {
-      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
-      const href = trigger.getAttribute('href');
-      if (href !== null) {
-        const imgEl = window.document.querySelector(`a[href="${href}"] img`);
-        if (imgEl !== null) {
-          const srcAttr = imgEl.getAttribute("src");
-          if (srcAttr && srcAttr.startsWith("data:")) {
-            slideConfig.href = srcAttr;
-          }
-        }
-      } 
-    });
-  
-    lightboxQuarto.on('slide_after_load', (data) => {
-      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
-      if (window.Quarto?.typesetMath) {
-        window.Quarto.typesetMath(slideNode);
-      }
-    });
-  
-  };
-  
-})();
-          </script>
 
 
 

@@ -12,8 +12,9 @@ import logging
 import time
 from pathlib import Path
 
-from cascade_defect.layer3_gpt4o.oracle import predict
 from dotenv import load_dotenv
+
+from cascade_defect.layer3_gpt4o.oracle import predict
 
 load_dotenv()
 

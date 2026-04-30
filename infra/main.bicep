@@ -38,6 +38,9 @@ param deployOpenAi bool = false
 @description('Tokens-per-minute capacity for the Oracle deployment (1 unit = 1k TPM). Ignored when deployOpenAi is false.')
 param oracleCapacity int = 10
 
+@description('Whether to deploy an Azure ML workspace for MLflow tracking + model registry. Compute runs on ACA Jobs, not AML compute.')
+param deployAml bool = false
+
 // ─── Naming ──────────────────────────────────────────────────────────────────
 var resourceToken = uniqueString(subscription().subscriptionId, resourceGroup().id, projectName, environmentName)
 var namePrefix = '${projectName}-${environmentName}'
@@ -47,6 +50,7 @@ var serviceBusNamespaceName = '${namePrefix}-sb-${take(resourceToken, 6)}'
 var logAnalyticsName = '${namePrefix}-logs'
 var acaEnvironmentName = '${namePrefix}-aca-env'
 var openAiAccountName = '${namePrefix}-aoai-${take(resourceToken, 6)}'
+var amlWorkspaceName = '${namePrefix}-aml-${take(resourceToken, 6)}'
 
 // Tags applied to every resource for cost reporting + cleanup.
 var commonTags = {
@@ -123,6 +127,17 @@ module openai 'modules/openai.bicep' = if (deployOpenAi) {
   }
 }
 
+module aml 'modules/aml.bicep' = if (deployAml) {
+  name: 'aml-deploy'
+  params: {
+    workspaceName: amlWorkspaceName
+    location: location
+    storageAccountId: storage.outputs.accountId
+    logAnalyticsWorkspaceId: logs.outputs.id
+    tags: commonTags
+  }
+}
+
 // ─── Outputs (consumed by Makefile to populate .env) ─────────────────────────
 output storageAccountName string = storage.outputs.accountName
 output storageBlobEndpoint string = storage.outputs.blobEndpoint
@@ -135,3 +150,5 @@ output acaEnvironmentId string = acaEnv.outputs.id
 output logAnalyticsWorkspaceId string = logs.outputs.id
 output openAiEndpoint string = deployOpenAi ? openai!.outputs.endpoint : ''
 output openAiDeploymentName string = deployOpenAi ? openai!.outputs.deploymentName : ''
+output amlWorkspaceName string = deployAml ? aml!.outputs.workspaceName : ''
+output amlMlflowTrackingUri string = deployAml ? aml!.outputs.mlflowTrackingUri : ''

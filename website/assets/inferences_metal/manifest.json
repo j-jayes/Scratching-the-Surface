@@ -1,0 +1,222 @@
+[
+  {
+    "id": "01_severstal_normal_l1_drop",
+    "headline": "L1 fast path \u2014 clean steel, gated in <500 ms",
+    "summary": "Severstal in-domain. PatchCore reconstructs the surface below the calibrated z-threshold, the cascade returns `no_defect` immediately, no L2 / L3 cost. Roughly 95 % of a real factory feed looks like this.",
+    "domain": "severstal",
+    "track": "A",
+    "true_polarity": "normal",
+    "decision": "no_defect",
+    "stopped_at_layer": 1,
+    "client_elapsed_ms": 527,
+    "trace": [
+      {
+        "layer": 1,
+        "decision": "no_defect",
+        "score_raw": 0.170803,
+        "score_z": -1.026,
+        "z_threshold": -0.5,
+        "elapsed_ms": 527
+      }
+    ],
+    "patchcore_heatmap": {
+      "score_p99": 0.1708,
+      "score_max": 0.2036,
+      "grid": [
+        28,
+        28
+      ]
+    },
+    "yolo_overlay": {
+      "detections": [
+        {
+          "class": "scratch",
+          "confidence": 0.463,
+          "bbox": [
+            1435.0,
+            100.1,
+            1460.9,
+            222.6
+          ]
+        },
+        {
+          "class": "scratch",
+          "confidence": 0.055,
+          "bbox": [
+            805.8,
+            114.3,
+            825.0,
+            162.3
+          ]
+        },
+        {
+          "class": "pitting",
+          "confidence": 0.054,
+          "bbox": [
+            641.4,
+            187.2,
+            662.1,
+            247.8
+          ]
+        }
+      ],
+      "n_total": 13
+    },
+    "source_image_relpath": "data/splits_metal/cascade_test/severstal/normal/ac0590cf3.jpg"
+  },
+  {
+    "id": "02_severstal_defect_l2_yolo",
+    "headline": "L2 production YOLO \u2014 defect classified, no Oracle bill",
+    "summary": "Severstal defective frame. PatchCore escalates at L1, the production YOLO (mAP50 0.50, trained 50 ep / 640 px on T4) returns a confident detection \u2265 0.5, the cascade short-circuits at L2 \u2014 no AOAI tokens spent. This is what the J.4 GPU retrain buys versus the smoke YOLO.",
+    "domain": "severstal",
+    "track": "A",
+    "true_polarity": "defective",
+    "decision": "defect",
+    "stopped_at_layer": 2,
+    "client_elapsed_ms": 430,
+    "trace": [
+      {
+        "layer": 1,
+        "decision": "defect",
+        "score_raw": 0.21823,
+        "score_z": -0.042,
+        "z_threshold": -0.5,
+        "elapsed_ms": 403
+      },
+      {
+        "layer": 2,
+        "decision": "defect",
+        "class": "scratch",
+        "confidence": 0.653,
+        "n_detections": 3,
+        "elapsed_ms": 26
+      }
+    ],
+    "patchcore_heatmap": {
+      "score_p99": 0.2182,
+      "score_max": 0.2374,
+      "grid": [
+        28,
+        28
+      ]
+    },
+    "yolo_overlay": {
+      "detections": [
+        {
+          "class": "scratch",
+          "confidence": 0.653,
+          "bbox": [
+            1113.3,
+            0.0,
+            1131.7,
+            255.8
+          ]
+        },
+        {
+          "class": "scratch",
+          "confidence": 0.462,
+          "bbox": [
+            29.9,
+            89.4,
+            46.5,
+            254.4
+          ]
+        },
+        {
+          "class": "scratch",
+          "confidence": 0.361,
+          "bbox": [
+            428.1,
+            1.0,
+            447.6,
+            255.0
+          ]
+        }
+      ],
+      "n_total": 29
+    },
+    "source_image_relpath": "data/splits_metal/cascade_test/severstal/defective/59ce36e8a.jpg"
+  },
+  {
+    "id": "03_ksdd2_defect_l3_oracle",
+    "headline": "L3 Oracle backstop \u2014 KSDD2 OOD defect, AE escalates",
+    "summary": "KSDD2 (commutator surfaces) is a different metal domain \u2014 the Severstal-trained YOLO has no class for it, so the router skips L2 by design. PatchCore flags the anomaly, the Oracle classifies it as `surface_anomaly` with a one-line rationale. This is the architectural payoff: pay the AOAI token cost only on frames where the cheap layers can't decide.",
+    "domain": "ksdd2",
+    "track": "B",
+    "true_polarity": "defective",
+    "decision": "defect",
+    "stopped_at_layer": 3,
+    "client_elapsed_ms": 3415,
+    "trace": [
+      {
+        "layer": 1,
+        "decision": "defect",
+        "score_raw": 0.40198,
+        "score_z": 16.327,
+        "z_threshold": 1.0,
+        "elapsed_ms": 254
+      },
+      {
+        "layer": 3,
+        "decision": "scratch",
+        "class": "scratch",
+        "confidence": 0.85,
+        "reasoning": "The image shows a long, thin, bright linear mark consistent with a scratch defect on the metal surface.",
+        "usage": {
+          "prompt_tokens": 2741,
+          "completion_tokens": 39,
+          "total_tokens": 2780
+        },
+        "cache": {
+          "hit": false,
+          "fingerprint": "4408080822000002"
+        },
+        "elapsed_ms": 3161
+      }
+    ],
+    "patchcore_heatmap": {
+      "score_p99": 0.402,
+      "score_max": 0.4412,
+      "grid": [
+        28,
+        28
+      ]
+    },
+    "yolo_overlay": {
+      "detections": [
+        {
+          "class": "scratch",
+          "confidence": 0.616,
+          "bbox": [
+            117.9,
+            346.3,
+            235.3,
+            426.8
+          ]
+        },
+        {
+          "class": "scratch",
+          "confidence": 0.135,
+          "bbox": [
+            116.3,
+            347.5,
+            235.6,
+            389.3
+          ]
+        },
+        {
+          "class": "scratch",
+          "confidence": 0.088,
+          "bbox": [
+            208.1,
+            362.8,
+            236.0,
+            426.7
+          ]
+        }
+      ],
+      "n_total": 67
+    },
+    "source_image_relpath": "data/splits_metal/cascade_test/ksdd2/defective/20190.png"
+  }
+]

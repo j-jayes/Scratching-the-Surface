@@ -6,7 +6,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="dcterms.date" content="2026-04-24">
+<meta name="dcterms.date" content="2026-04-30">
 
 <title>Evaluation – Project Cascade Defect</title>
 <style>
@@ -59,7 +59,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </style>
 
 
-<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
 <script src="site_libs/quarto-nav/headroom.min.js"></script>
 <script src="site_libs/clipboard/clipboard.min.js"></script>
 <script src="site_libs/quarto-search/autocomplete.umd.js"></script>
@@ -110,12 +110,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   }
 }</script>
 <style>html{ scroll-behavior: smooth; }</style>
-<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
-
-
-
-<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
-
 
 
 </head>
@@ -306,10 +300,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span class="menu-text">Home</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./intro.html"> 
-<span class="menu-text">Problem</span></a>
-  </li>  
-  <li class="nav-item">
     <a class="nav-link" href="./architecture.html"> 
 <span class="menu-text">Architecture</span></a>
   </li>  
@@ -349,14 +339,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#what-was-measured" id="toc-what-was-measured" class="nav-link active" data-scroll-target="#what-was-measured">What was measured</a></li>
-  <li><a href="#cascade-routing-distribution" id="toc-cascade-routing-distribution" class="nav-link" data-scroll-target="#cascade-routing-distribution">1. Cascade routing distribution</a></li>
-  <li><a href="#latency" id="toc-latency" class="nav-link" data-scroll-target="#latency">2. Latency</a></li>
-  <li><a href="#cost" id="toc-cost" class="nav-link" data-scroll-target="#cost">3. Cost</a></li>
-  <li><a href="#accuracy-two-honest-numbers" id="toc-accuracy-two-honest-numbers" class="nav-link" data-scroll-target="#accuracy-two-honest-numbers">4. Accuracy — two honest numbers</a></li>
-  <li><a href="#confusion-matrix" id="toc-confusion-matrix" class="nav-link" data-scroll-target="#confusion-matrix">5. Confusion matrix</a></li>
-  <li><a href="#what-the-cascade-buys-you" id="toc-what-the-cascade-buys-you" class="nav-link" data-scroll-target="#what-the-cascade-buys-you">6. What the cascade buys you</a></li>
-  <li><a href="#reproducing" id="toc-reproducing" class="nav-link" data-scroll-target="#reproducing">7. Reproducing</a></li>
+  <li><a href="#what-is-being-measured" id="toc-what-is-being-measured" class="nav-link active" data-scroll-target="#what-is-being-measured">What is being measured</a></li>
+  <li><a href="#track-a-severstal-in-domain" id="toc-track-a-severstal-in-domain" class="nav-link" data-scroll-target="#track-a-severstal-in-domain">Track A — Severstal in-domain</a></li>
+  <li><a href="#track-b-ksdd2-second-domain-ae-oracle-no-yolo" id="toc-track-b-ksdd2-second-domain-ae-oracle-no-yolo" class="nav-link" data-scroll-target="#track-b-ksdd2-second-domain-ae-oracle-no-yolo">Track B — KSDD2 second-domain (AE + Oracle, no YOLO)</a></li>
+  <li><a href="#track-c-ood-detector-stress-test" id="toc-track-c-ood-detector-stress-test" class="nav-link" data-scroll-target="#track-c-ood-detector-stress-test">Track C — OOD detector stress test</a></li>
+  <li><a href="#reproducing" id="toc-reproducing" class="nav-link" data-scroll-target="#reproducing">Reproducing</a></li>
+  <li><a href="#phase-k-calibration-caching-and-the-production-yolo-uplift" id="toc-phase-k-calibration-caching-and-the-production-yolo-uplift" class="nav-link" data-scroll-target="#phase-k-calibration-caching-and-the-production-yolo-uplift">Phase K — Calibration, Caching, and the production-YOLO uplift</a>
+  <ul class="collapse">
+  <li><a href="#ae-patchcore-production-yolo-the-honest-progression-story" id="toc-ae-patchcore-production-yolo-the-honest-progression-story" class="nav-link" data-scroll-target="#ae-patchcore-production-yolo-the-honest-progression-story">AE → PatchCore → production YOLO (the honest progression story)</a></li>
+  <li><a href="#per-class-confusion-on-track-a-defectives-the-cascades-final-call" id="toc-per-class-confusion-on-track-a-defectives-the-cascades-final-call" class="nav-link" data-scroll-target="#per-class-confusion-on-track-a-defectives-the-cascades-final-call">Per-class confusion on Track A defectives (the cascade’s final call)</a></li>
+  </ul></li>
+  <li><a href="#appendix-v1-neu-numbers-for-honesty" id="toc-appendix-v1-neu-numbers-for-honesty" class="nav-link" data-scroll-target="#appendix-v1-neu-numbers-for-honesty">Appendix — v1 NEU numbers (for honesty)</a></li>
   </ul>
 </nav>
     </div>
@@ -367,7 +360,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
 <h1 class="title">Evaluation</h1>
-<p class="subtitle lead">Measured latency, cost, and accuracy of the deployed cascade on real NEU data</p>
+<p class="subtitle lead">Three tracks: in-domain, second-domain, OOD</p>
 </div>
 
 
@@ -378,7 +371,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">April 24, 2026</p>
+      <p class="date">April 30, 2026</p>
     </div>
   </div>
   
@@ -390,323 +383,164 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<section id="what-was-measured" class="level2">
-<h2 class="anchored" data-anchor-id="what-was-measured">What was measured</h2>
-<p>A <strong>stratified 60-image subset</strong> of the held-out NEU-CLS golden test set (10 images per class, drawn from the 360-image test split) was sent through two architectures running on Azure:</p>
-<ul>
-<li><strong>Cascade</strong> — <code>POST /predict</code> on the deployed Container Apps router (Layer 1 AE → Layer 2 YOLOv8n → Layer 3 Azure OpenAI).</li>
-<li><strong>Pure Oracle baseline</strong> — every image sent directly to <code>gpt-4.1-mini</code> with the same few-shot prompt the cascade uses.</li>
-</ul>
-<p>The dataset is the <strong>real NEU surface defect dataset</strong> (1,800 200×200 images, 6 classes), pulled from the public HuggingFace mirror <a href="https://huggingface.co/datasets/newguyme/neu_cls"><code>newguyme/neu_cls</code></a> and split 18 seed / 1,422 unlabelled / 360 test by <a href="../src/cascade_defect/data/split.py"><code>split.py</code></a>.</p>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>A note on the gatekeeper’s training set
-</div>
-<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
-</div>
-<div id="callout-1" class="callout-1-contents callout-collapse collapse">
-<div class="callout-body-container callout-body">
-<p>NEU-CLS contains no “no-defect” class — every image is one of six defect types. The Layer 1 autoencoder was therefore trained on a <strong>single class</strong> (<code>rolled-in_scale</code>) and treats it as the “normal steel” reference. This is the closest substitute available; in production you would train on defect-free frames captured during a clean shift.</p>
-<p>A consequence is that <code>inclusion</code> and <code>rolled-in_scale</code> look “normal” to the AE — both have similarly low MSE — so the cascade short-circuits them at Layer 1. <strong>In a real factory feed, that would be the correct behaviour on no-defect frames; here it counts against accuracy because every test image is a defect.</strong> We report two accuracy numbers to make this honest.</p>
-</div>
-</div>
-</div>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-Note
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>Pricing is <code>gpt-4.1-mini</code> at $0.4/1M input, $1.6/1M output. The model was selected because it was the only AOAI vision-capable deployment with available TPM quota in West Europe at deploy time.</p>
-</div>
-</div>
-</section>
-<section id="cascade-routing-distribution" class="level2">
-<h2 class="anchored" data-anchor-id="cascade-routing-distribution">1. Cascade routing distribution</h2>
-<div id="cell-fig-routing" class="cell" data-execution_count="2">
-<div class="cell-output cell-output-display">
-<div id="fig-routing" class="quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-routing-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="evaluation_files/figure-html/fig-routing-output-1.png" width="661" height="326" class="figure-img">
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-routing-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;1: Where each frame stops in the cascade
-</figcaption>
-</figure>
-</div>
-</div>
-</div>
-<p>The autoencoder gatekeeper drops <strong>53%</strong> of frames before they ever reach the Oracle. This is the entire point of the cascade — every dropped frame saves an Azure OpenAI call.</p>
-</section>
-<section id="latency" class="level2">
-<h2 class="anchored" data-anchor-id="latency">2. Latency</h2>
-<p>End-to-end client latency (curl → router → final JSON response) on <strong>warm</strong> Container Apps (idle replicas already up).</p>
-<div class="cell" data-execution_count="3">
-<div id="tbl-latency" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="3">
-<figure class="quarto-float quarto-float-tbl figure">
-<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl quarto-uncaptioned" id="tbl-latency-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Table&nbsp;1
-</figcaption>
-<div aria-describedby="tbl-latency-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div class="cell-output cell-output-display" data-execution_count="3">
-<div>
-
-
-<table class="dataframe do-not-create-environment caption-top table table-sm table-striped small" data-border="1">
-<thead>
-<tr class="header">
-<th data-quarto-table-cell-role="th"></th>
-<th data-quarto-table-cell-role="th">Architecture</th>
-<th data-quarto-table-cell-role="th">Mean (ms)</th>
-<th data-quarto-table-cell-role="th">p50 (ms)</th>
-<th data-quarto-table-cell-role="th">p95 (ms)</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<th data-quarto-table-cell-role="th">0</th>
-<td>Cascade (router)</td>
-<td>3054.9</td>
-<td>195</td>
-<td>3770</td>
-</tr>
-<tr class="even">
-<th data-quarto-table-cell-role="th">1</th>
-<td>Pure Oracle</td>
-<td>2251.7</td>
-<td>2147</td>
-<td>3532</td>
-</tr>
-</tbody>
-</table>
-
-</div>
-</div>
-</div>
-</figure>
-</div>
-</div>
-<p>Note the <strong>bimodal cascade latency</strong>: the median (195 ms) is the AE-only fast path, while the p95 (3770 ms) reflects frames that escalate all the way to the Oracle. The mean is dominated by the Oracle-bound frames because each one costs ~3 s.</p>
-<div class="callout callout-style-default callout-warning callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Warning</span>Cold-start penalty
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>The first request after <code>min-replicas=0</code> scaling pays a cold-start penalty of ~10–30 s while the AE / YOLO / Oracle containers pull and load model weights. This is <strong>excluded</strong> from the table above — production deployments that need sub-second p99 should set <code>min-replicas≥1</code> during shifts.</p>
-</div>
-</div>
-</section>
-<section id="cost" class="level2">
-<h2 class="anchored" data-anchor-id="cost">3. Cost</h2>
-<div class="cell" data-execution_count="4">
-<div id="tbl-cost" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="4">
-<figure class="quarto-float quarto-float-tbl figure">
-<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl quarto-uncaptioned" id="tbl-cost-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Table&nbsp;2
-</figcaption>
-<div aria-describedby="tbl-cost-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div class="cell-output cell-output-display" data-execution_count="4">
-<div>
-
-
-<table class="dataframe do-not-create-environment caption-top table table-sm table-striped small" data-border="1">
-<thead>
-<tr class="header">
-<th data-quarto-table-cell-role="th"></th>
-<th data-quarto-table-cell-role="th">Architecture</th>
-<th data-quarto-table-cell-role="th">Tokens in</th>
-<th data-quarto-table-cell-role="th">Tokens out</th>
-<th data-quarto-table-cell-role="th">USD (60 imgs)</th>
-<th data-quarto-table-cell-role="th">USD / 100k frames</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<th data-quarto-table-cell-role="th">0</th>
-<td>Cascade</td>
-<td>68607</td>
-<td>960</td>
-<td>0.028979</td>
-<td>48.30</td>
-</tr>
-<tr class="even">
-<th data-quarto-table-cell-role="th">1</th>
-<td>Pure Oracle</td>
-<td>152460</td>
-<td>2125</td>
-<td>0.064384</td>
-<td>107.31</td>
-</tr>
-</tbody>
-</table>
-
-</div>
-</div>
-</div>
-</figure>
-</div>
-</div>
-<div id="cell-fig-cost" class="cell" data-execution_count="5">
-<div class="cell-output cell-output-display">
-<div id="fig-cost" class="quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-cost-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="evaluation_files/figure-html/fig-cost-output-1.png" width="566" height="374" class="figure-img">
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-cost-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;2: Cost per 100,000 frames extrapolated from the 60-image run
-</figcaption>
-</figure>
-</div>
-</div>
-</div>
-<p>The cascade saves <strong>55%</strong> even though the test set is 100% defects — the AE drops over half of them (the ones that visually resemble its training class). On a real factory feed where the majority of frames are defect-free, savings would be substantially higher because <strong>every</strong> clean frame would be dropped at Layer 1.</p>
-</section>
-<section id="accuracy-two-honest-numbers" class="level2">
-<h2 class="anchored" data-anchor-id="accuracy-two-honest-numbers">4. Accuracy — two honest numbers</h2>
-<p>Because the test set has no true negatives, top-1 accuracy can be reported two ways:</p>
-<div class="cell" data-execution_count="6">
-<div id="tbl-accuracy" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="6">
-<figure class="quarto-float quarto-float-tbl figure">
-<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl quarto-uncaptioned" id="tbl-accuracy-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Table&nbsp;3
-</figcaption>
-<div aria-describedby="tbl-accuracy-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div class="cell-output cell-output-display" data-execution_count="6">
-<style type="text/css">
-</style>
-
-<table id="T_dc911" class="do-not-create-environment caption-top table table-sm table-striped small">
-<thead>
-<tr class="header">
-<th class="blank level0" data-quarto-table-cell-role="th">&nbsp;</th>
-<th id="T_dc911_level0_col0" class="col_heading level0 col0" data-quarto-table-cell-role="th">Architecture</th>
-<th id="T_dc911_level0_col1" class="col_heading level0 col1" data-quarto-table-cell-role="th">Top-1 accuracy</th>
-<th id="T_dc911_level0_col2" class="col_heading level0 col2" data-quarto-table-cell-role="th">n</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<th id="T_dc911_level0_row0" class="row_heading level0 row0" data-quarto-table-cell-role="th">0</th>
-<td id="T_dc911_row0_col0" class="data row0 col0">Cascade — overall (counts AE drops as wrong)</td>
-<td id="T_dc911_row0_col1" class="data row0 col1">45.0%</td>
-<td id="T_dc911_row0_col2" class="data row0 col2">60</td>
-</tr>
-<tr class="even">
-<th id="T_dc911_level0_row1" class="row_heading level0 row1" data-quarto-table-cell-role="th">1</th>
-<td id="T_dc911_row1_col0" class="data row1 col0">Cascade — frames the cascade actually classified</td>
-<td id="T_dc911_row1_col1" class="data row1 col1">100.0%</td>
-<td id="T_dc911_row1_col2" class="data row1 col2">27</td>
-</tr>
-<tr class="odd">
-<th id="T_dc911_level0_row2" class="row_heading level0 row2" data-quarto-table-cell-role="th">2</th>
-<td id="T_dc911_row2_col0" class="data row2 col0">Pure Oracle</td>
-<td id="T_dc911_row2_col1" class="data row2 col1">96.7%</td>
-<td id="T_dc911_row2_col2" class="data row2 col2">60</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-</figure>
-</div>
-</div>
-<p>The <strong>conditional</strong> accuracy is the meaningful one for the cascade: when the AE <em>does</em> hand a frame off to the Oracle, the Oracle gets it right 100% of the time (27 images). The pure Oracle baseline achieves 97% over all 60 images for $107/100k frames.</p>
-</section>
-<section id="confusion-matrix" class="level2">
-<h2 class="anchored" data-anchor-id="confusion-matrix">5. Confusion matrix</h2>
-<div id="cell-fig-confusion" class="cell" data-execution_count="7">
-<div class="cell-output cell-output-display">
-<div id="fig-confusion" class="quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-confusion-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="evaluation_files/figure-html/fig-confusion-output-1.png" width="581" height="470" class="figure-img">
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-confusion-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;3: Cascade confusion matrix on the real NEU test subset
-</figcaption>
-</figure>
-</div>
-</div>
-</div>
-<p>Reading this:</p>
-<ul>
-<li><strong>Diagonal cells</strong> = correct classifications by the Oracle.</li>
-<li><strong><code>no_defect</code> column</strong> = frames the AE short-circuited (would be a true-negative on a real feed; counts as a miss here).</li>
-<li><strong>Inclusion</strong> is dropped 100% by the AE — its texture is too similar to the training class. A defect-free training set would fix this.</li>
-</ul>
-</section>
-<section id="what-the-cascade-buys-you" class="level2">
-<h2 class="anchored" data-anchor-id="what-the-cascade-buys-you">6. What the cascade buys you</h2>
+<section id="what-is-being-measured" class="level2">
+<h2 class="anchored" data-anchor-id="what-is-being-measured">What is being measured</h2>
+<p>Three independent evaluation tracks, all run through the <strong>same deployed router</strong> (cascade) and the <strong>same Oracle-only baseline</strong> (every frame to Azure OpenAI). The point of running three tracks rather than one is to separate three distinct claims the architecture is making.</p>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
 <thead>
 <tr class="header">
-<th>Property</th>
-<th style="text-align: right;">Pure Oracle</th>
-<th style="text-align: right;">Cascade</th>
-<th style="text-align: right;">Δ</th>
+<th>Track</th>
+<th>Test set</th>
+<th>Layers exercised</th>
+<th>Claim under test</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>Cost / 100k frames</td>
-<td style="text-align: right;">$107</td>
-<td style="text-align: right;">$48</td>
-<td style="text-align: right;"><strong>−55%</strong></td>
+<td><strong>A — In-domain</strong></td>
+<td>Severstal cascade_test (~2,500 imgs, ~50/50 normal/defective)</td>
+<td>L1 + L2 + L3</td>
+<td>The cascade saves money on a realistic factory feed without losing accuracy.</td>
 </tr>
 <tr class="even">
-<td>Median latency</td>
-<td style="text-align: right;">2147 ms</td>
-<td style="text-align: right;">195 ms</td>
-<td style="text-align: right;">fast path</td>
+<td><strong>B — Second domain</strong></td>
+<td>KSDD2 cascade_test (1,250 imgs, ~89% normal)</td>
+<td>L1 + L3 only</td>
+<td>The autoencoder’s “normal” notion generalises across two metal domains.</td>
 </tr>
 <tr class="odd">
-<td>Accuracy on classified frames</td>
-<td style="text-align: right;">97%</td>
-<td style="text-align: right;">100%</td>
-<td style="text-align: right;">comparable</td>
-</tr>
-<tr class="even">
-<td>Tokens billed</td>
-<td style="text-align: right;">152,460</td>
-<td style="text-align: right;">68,607</td>
-<td style="text-align: right;"><strong>−55%</strong></td>
+<td><strong>C — OOD detector</strong></td>
+<td>KSDD2 defectives only</td>
+<td>L2 standalone</td>
+<td>Quantifies what YOLO misses when shown defects it wasn’t trained on — the cost the Oracle backstops.</td>
 </tr>
 </tbody>
 </table>
+</section>
+<section id="track-a-severstal-in-domain" class="level2">
+<h2 class="anchored" data-anchor-id="track-a-severstal-in-domain">Track A — Severstal in-domain</h2>
+<p>This is the headline result. With real negatives in the test set, the L1 drop-rate finally counts as <em>correct behaviour</em> rather than as wrongly discarded defects.</p>
+<p><strong>Acceptance bar:</strong> F1 ≥ 0.70, L1 drop rate on negatives ≥ 0.80, cost advantage over Oracle-only ≥ 5×.</p>
+</section>
+<section id="track-b-ksdd2-second-domain-ae-oracle-no-yolo" class="level2">
+<h2 class="anchored" data-anchor-id="track-b-ksdd2-second-domain-ae-oracle-no-yolo">Track B — KSDD2 second-domain (AE + Oracle, no YOLO)</h2>
+<p>KSDD2 is a different metal domain. We deliberately <em>do not</em> invoke YOLO here — it would just emit Severstal-class noise. The cascade collapses to AE + Oracle. The question this track asks: <em>did the union-of-normals AE actually generalise, or did it just memorise Severstal?</em></p>
+<p><strong>Acceptance bar:</strong> F1 ≥ 0.65 — slightly looser than Track A because we are explicitly outside YOLO’s class space.</p>
+</section>
+<section id="track-c-ood-detector-stress-test" class="level2">
+<h2 class="anchored" data-anchor-id="track-c-ood-detector-stress-test">Track C — OOD detector stress test</h2>
+<p>A different question: how badly does the Severstal-trained YOLO miss KSDD2 defects when run <em>standalone</em>? The number itself is uninteresting; the <em>gap</em> between Track C (YOLO alone) and Track B (AE + Oracle) is what justifies the Oracle being in the architecture at all.</p>
 </section>
 <section id="reproducing" class="level2">
-<h2 class="anchored" data-anchor-id="reproducing">7. Reproducing</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Pull real NEU from public HF mirror (no auth required)</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python <span class="at">-c</span> <span class="st">"from cascade_defect.data.ingest import download_neu_from_hf; download_neu_from_hf()"</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python <span class="at">-m</span> cascade_defect.data.split</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Retrain Layer 1 AE on a single 'normal' class</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python <span class="at">-m</span> cascade_defect.layer1_autoencoder.train <span class="at">--normal-class</span> rolled-in_scale <span class="at">--epochs</span> 8</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Stratified 60-image cascade run (~3 min, ~$0.03)</span></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python <span class="at">-m</span> cascade_defect.eval.run_cascade <span class="at">--limit</span> 60</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. Pure-Oracle baseline on the same 60 images</span></span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python <span class="at">-m</span> cascade_defect.eval.run_oracle_only <span class="at">--limit</span> 60</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="co"># 5. Roll up reports/metrics.json + render this page</span></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python <span class="at">-m</span> cascade_defect.eval.metrics</span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="ex">quarto</span> render docs/</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<h2 class="anchored" data-anchor-id="reproducing">Reproducing</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Build the metal-surface split (KSDD2 + Severstal must be present locally).</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python <span class="at">-m</span> cascade_defect.data.split_metal</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Train the autoencoder on the union of normals.</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python <span class="at">-m</span> cascade_defect.layer1_autoencoder.train_metal <span class="at">--epochs</span> 15</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Build the PatchCore-lite memory banks (J.1 Tier-3 — the production scorer).</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python <span class="at">-m</span> cascade_defect.layer1_autoencoder.train_patchcore</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. Sanity-check per-domain score separation (AE vs PatchCore).</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python scripts/ae_metal_sanity.py</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co"># 5. Build the YOLO dataset on disk + train on Severstal defectives.</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python <span class="at">-m</span> cascade_defect.data.severstal_yolo</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python <span class="at">-m</span> cascade_defect.layer2_yolo.train_metal <span class="at">--epochs</span> 50</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="co"># 6. Run all three eval tracks locally with the calibrated K.2 thresholds</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="co">#    and the K.4 perceptual-hash cache. --layers l1 l2 l3 incurs AOAI cost.</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python <span class="at">-m</span> cascade_defect.eval.run_cascade_metal <span class="dt">\</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">--tracks</span> A B C <span class="at">--layers</span> l1 l2 l3 <span class="at">--limit-per-track</span> 60 <span class="dt">\</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">--z-severstal</span> <span class="at">-0.5</span> <span class="at">--z-ksdd2</span> 1.0 <span class="at">--use-cache</span> <span class="dt">\</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">--out</span> reports/eval_cascade_metal_k1_calibrated.jsonl</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="co"># 7. Sweep τ to (re-)find the cost knee per domain.</span></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python <span class="at">-m</span> cascade_defect.eval.threshold_sweep <span class="dt">\</span></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>    <span class="at">--trace</span> reports/eval_cascade_metal_k1_calibrated.jsonl <span class="at">--persist-knee</span></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a><span class="co"># 8. Roll up to reports/metrics_metal.json and re-render this page.</span></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a><span class="ex">Copy-Item</span> reports/eval_cascade_metal_k1_calibrated.jsonl <span class="kw">`</span></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>    <span class="ex">reports/eval_cascade_metal.jsonl</span> <span class="at">-Force</span></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python <span class="at">-m</span> cascade_defect.eval.metrics_metal</span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python scripts/render_inference_panels_metal.py</span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a><span class="ex">quarto</span> render website/</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="phase-k-calibration-caching-and-the-production-yolo-uplift" class="level2">
+<h2 class="anchored" data-anchor-id="phase-k-calibration-caching-and-the-production-yolo-uplift">Phase K — Calibration, Caching, and the production-YOLO uplift</h2>
+<p>The headline numbers above were re-run after Phase J.4 swapped the smoke 3-epoch CPU YOLO (mAP50 0.17) for the production 50-epoch / 640 px / T4 GPU YOLO (mAP50 <strong>0.50</strong>), then re-calibrated by Phase K:</p>
+<ul>
+<li><strong>K.1</strong> — re-ran all three tracks against the new YOLO weights.</li>
+<li><strong>K.2</strong> — swept per-domain <code>τ</code> and picked the knee of the <code>(escalation_rate, F1)</code> curve. Persisted into <a href="https://github.com/j-jayes/Scratching-the-Surface/blob/main/models/patchcore_metal/summary.json"><code>models/patchcore_metal/summary.json</code></a>. KSDD2’s PatchCore separates cleanly (knee <code>τ = 1.0</code>, F1 ≈ 0.94 just from L1). Severstal’s PatchCore <em>cannot</em> separate well at any <code>τ</code> (knee F1 caps at ≈ 0.69 on L1 alone) — which is exactly <em>why</em> the cascade has Layers 2 and 3.</li>
+<li><strong>K.4</strong> — added a dHash perceptual-hash cache in front of the Oracle (<a href="https://github.com/j-jayes/Scratching-the-Surface/blob/main/src/cascade_defect/layer3_gpt4o/cache.py"><code>layer3_gpt4o/cache.py</code></a>). Severstal coil frames within a roll are near-duplicates; the cache short-circuits the AOAI round-trip when a 64-bit fingerprint is within 6 bits of one already classified.</li>
+</ul>
+<section id="ae-patchcore-production-yolo-the-honest-progression-story" class="level3">
+<h3 class="anchored" data-anchor-id="ae-patchcore-production-yolo-the-honest-progression-story">AE → PatchCore → production YOLO (the honest progression story)</h3>
+<p>Three iterations of Layer 1 / Layer 2, same KSDD2+Severstal evaluation, showing what each step bought:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 14%">
+<col style="width: 14%">
+<col style="width: 14%">
+<col style="width: 19%">
+<col style="width: 19%">
+<col style="width: 19%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Stage</th>
+<th>Layer-1 scorer</th>
+<th>Layer-2 detector</th>
+<th style="text-align: right;">KSDD2 Δμ (def − normal)</th>
+<th style="text-align: right;">Sev. Δμ</th>
+<th style="text-align: right;">YOLO mAP50</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Baseline (Phase I)</td>
+<td>Conv autoencoder, image-mean MSE</td>
+<td>YOLOv8n COCO-pretrained</td>
+<td style="text-align: right;">+1.5σ</td>
+<td style="text-align: right;">inverted</td>
+<td style="text-align: right;">n/a (v1 was NEU, no real YOLO)</td>
+</tr>
+<tr class="even">
+<td>J.1</td>
+<td>AE + per-domain patch-quantile contrast</td>
+<td>YOLOv8n smoke (3 ep / 320 px CPU)</td>
+<td style="text-align: right;">+1.93σ</td>
+<td style="text-align: right;">−0.62σ</td>
+<td style="text-align: right;">0.17</td>
+</tr>
+<tr class="odd">
+<td><strong>J.4 + K.2 (production)</strong></td>
+<td><strong>PatchCore-lite</strong> (frozen ResNet18 + kNN)</td>
+<td><strong>YOLOv8n production</strong> (50 ep / 640 px T4)</td>
+<td style="text-align: right;"><strong>+8.18σ</strong></td>
+<td style="text-align: right;"><strong>+0.52σ</strong></td>
+<td style="text-align: right;"><strong>0.50</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The AE swap fixed the Severstal inversion but did not produce a usable gate. The PatchCore swap rescued KSDD2 outright (Δμ went from 1.9σ to 8.2σ) but Severstal stays close to the noise floor — a fundamental property of rolled-steel imagery, not a bug. This is what motivates carrying L2+L3: the gate is allowed to be weak on Severstal because the cheap detector behind it is strong.</p>
+</section>
+<section id="per-class-confusion-on-track-a-defectives-the-cascades-final-call" class="level3">
+<h3 class="anchored" data-anchor-id="per-class-confusion-on-track-a-defectives-the-cascades-final-call">Per-class confusion on Track A defectives (the cascade’s final call)</h3>
+<p>The interesting cell is <code>no_defect</code>: those are the true Severstal defects the cascade missed. Their share is the recall ceiling — exactly the failure mode the K.4 cache <em>cannot</em> fix and the K.3 ablations (YOLOv8s, 1024 px) are designed to attack.</p>
+</section>
+</section>
+<section id="appendix-v1-neu-numbers-for-honesty" class="level2">
+<h2 class="anchored" data-anchor-id="appendix-v1-neu-numbers-for-honesty">Appendix — v1 NEU numbers (for honesty)</h2>
+<p>The earlier NEU build trained the autoencoder on a single defect class (<code>rolled-in_scale</code>) treated as a “normal” proxy, because NEU has no defect-free imagery at all. Those numbers are kept here as the <em>before</em> baseline; everything above is the <em>after</em>.</p>
+<p>The headline lesson from v1: the <em>router</em> worked (100% accuracy on classified frames), but the <em>dataset</em> didn’t exercise the autoencoder’s strengths — NEU’s lack of defect-free frames meant Layer 1 was guessing what “normal” looked like. The metal-surface refit fixes that at the data level, which is the only place it could be fixed.</p>
 
 
 </section>

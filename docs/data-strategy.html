@@ -6,7 +6,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="dcterms.date" content="2026-04-24">
+<meta name="dcterms.date" content="2026-04-30">
 
 <title>Data Strategy – Project Cascade Defect</title>
 <style>
@@ -304,10 +304,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span class="menu-text">Home</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./intro.html"> 
-<span class="menu-text">Problem</span></a>
-  </li>  
-  <li class="nav-item">
     <a class="nav-link" href="./architecture.html"> 
 <span class="menu-text">Architecture</span></a>
   </li>  
@@ -347,20 +343,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#dataset-neu-metal-surface-defects" id="toc-dataset-neu-metal-surface-defects" class="nav-link active" data-scroll-target="#dataset-neu-metal-surface-defects">Dataset: NEU Metal Surface Defects</a>
-  <ul class="collapse">
-  <li><a href="#defect-classes" id="toc-defect-classes" class="nav-link" data-scroll-target="#defect-classes">Defect Classes</a></li>
-  </ul></li>
-  <li><a href="#the-three-way-split" id="toc-the-three-way-split" class="nav-link" data-scroll-target="#the-three-way-split">The Three-Way Split</a>
-  <ul class="collapse">
-  <li><a href="#why-pseudo-labels" id="toc-why-pseudo-labels" class="nav-link" data-scroll-target="#why-pseudo-labels">Why Pseudo-Labels?</a></li>
-  </ul></li>
-  <li><a href="#gpt-4o-annotation-pipeline" id="toc-gpt-4o-annotation-pipeline" class="nav-link" data-scroll-target="#gpt-4o-annotation-pipeline">GPT-4o Annotation Pipeline</a></li>
-  <li><a href="#data-engineering-on-azure" id="toc-data-engineering-on-azure" class="nav-link" data-scroll-target="#data-engineering-on-azure">Data Engineering on Azure</a>
-  <ul class="collapse">
-  <li><a href="#commands" id="toc-commands" class="nav-link" data-scroll-target="#commands">Commands</a></li>
-  </ul></li>
-  <li><a href="#label-schema-pydantic" id="toc-label-schema-pydantic" class="nav-link" data-scroll-target="#label-schema-pydantic">Label Schema (Pydantic)</a></li>
+  <li><a href="#why-two-datasets" id="toc-why-two-datasets" class="nav-link active" data-scroll-target="#why-two-datasets">Why two datasets</a></li>
+  <li><a href="#the-combination-strategy" id="toc-the-combination-strategy" class="nav-link" data-scroll-target="#the-combination-strategy">The combination strategy</a></li>
+  <li><a href="#the-split-layout" id="toc-the-split-layout" class="nav-link" data-scroll-target="#the-split-layout">The split layout</a></li>
+  <li><a href="#the-three-evaluation-tracks" id="toc-the-three-evaluation-tracks" class="nav-link" data-scroll-target="#the-three-evaluation-tracks">The three evaluation tracks</a></li>
+  <li><a href="#layer-3-prompt" id="toc-layer-3-prompt" class="nav-link" data-scroll-target="#layer-3-prompt">Layer 3 prompt</a></li>
+  <li><a href="#reproducing-the-data-step" id="toc-reproducing-the-data-step" class="nav-link" data-scroll-target="#reproducing-the-data-step">Reproducing the data step</a></li>
   </ul>
 </nav>
     </div>
@@ -371,7 +359,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
 <h1 class="title">Data Strategy</h1>
-<p class="subtitle lead">From 1,800 raw images to a pseudo-labelled training set</p>
+<p class="subtitle lead">Two industrial-metal datasets, one autoencoder, one detector</p>
 </div>
 
 
@@ -382,7 +370,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">April 24, 2026</p>
+      <p class="date">April 30, 2026</p>
     </div>
   </div>
   
@@ -394,284 +382,180 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<section id="dataset-neu-metal-surface-defects" class="level2 page-columns page-full">
-<h2 class="anchored" data-anchor-id="dataset-neu-metal-surface-defects">Dataset: NEU Metal Surface Defects</h2>
-<p>The foundation of this project is the <strong>NEU Metal Surface Defects Database</strong> — a widely used benchmark for surface defect detection in rolled steel manufacturing.</p>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>Property</th>
-<th>Value</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>Source</td>
-<td>Kaggle (<code>yiyang-feng/neu-metal-surface-defects-database</code>)</td>
-</tr>
-<tr class="even">
-<td>Total images</td>
-<td>1,800</td>
-</tr>
-<tr class="odd">
-<td>Classes</td>
-<td>6 (see below)</td>
-</tr>
-<tr class="even">
-<td>Image size</td>
-<td>200×200 px (greyscale)</td>
-</tr>
-<tr class="odd">
-<td>Images per class</td>
-<td>300 (balanced)</td>
-</tr>
-</tbody>
-</table>
-<section id="defect-classes" class="level3 page-columns page-full">
-<h3 class="anchored" data-anchor-id="defect-classes">Defect Classes</h3>
-<div class="column-page">
-<div class="cell" data-layout-align="default">
-<div class="cell-output-display">
-<div id="fig-classes" class="quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-classes-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div>
-<pre class="mermaid mermaid-js" data-label="fig-classes">flowchart TD
-    ROOT["NEU Surface Defects\n1,800 images"]
-    C1["🔵 Crazing\n300 imgs"]
-    C2["🟢 Inclusion\n300 imgs"]
-    C3["🟡 Patches\n300 imgs"]
-    C4["🟠 Pitted Surface\n300 imgs"]
-    C5["🔴 Rolled-in Scale\n300 imgs"]
-    C6["🟣 Scratches\n300 imgs"]
-
-    ROOT --&gt; C1
-    ROOT --&gt; C2
-    ROOT --&gt; C3
-    ROOT --&gt; C4
-    ROOT --&gt; C5
-    ROOT --&gt; C6
-</pre>
-</div>
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-classes-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;1: NEU dataset defect class taxonomy
-</figcaption>
-</figure>
-</div>
-</div>
-</div>
-</div>
-<hr>
-</section>
-</section>
-<section id="the-three-way-split" class="level2 page-columns page-full">
-<h2 class="anchored" data-anchor-id="the-three-way-split">The Three-Way Split</h2>
-<p>We simulate a real-world factory scenario where only a tiny fraction of images are manually labelled.</p>
-<div class="column-page">
-<pre class="{mermaid}"><code>%%| label: fig-split
-%%| fig-cap: "Dataset split strategy"
-flowchart LR
-    RAW["NEU Dataset\n1,800 images\n6 classes"]
-
-    subgraph SEED["🌱 Few-Shot Seed (1%)"]
-        S["18 images\n3 per class\nLabels kept"]
-    end
-
-    subgraph UNLABELLED["🔓 Unlabelled Pool (79%)"]
-        U["~1,420 images\nLabels stripped\nPseudo-labelled by GPT-4o"]
-    end
-
-    subgraph TEST["🧪 Golden Test Set (20%)"]
-        T["360 images\nGround-truth labels\nNever used in training"]
-    end
-
-    RAW --&gt; SEED
-    RAW --&gt; UNLABELLED
-    RAW --&gt; TEST
-
-    S --&gt; PROMPT["GPT-4o\nFew-Shot System Prompt"]
-    U --&gt; GPT4O["GPT-4o\nBatch Annotation"]
-    PROMPT --&gt; GPT4O
-    GPT4O --&gt; PSEUDO["Pseudo-Labels\n(YOLO format)"]
-    PSEUDO --&gt; YOLO["YOLOv8n\nTraining"]
-
-    style SEED fill:#dcfce7,stroke:#16a34a
-    style UNLABELLED fill:#fef9c3,stroke:#ca8a04
-    style TEST fill:#fee2e2,stroke:#dc2626</code></pre>
-</div>
-<section id="why-pseudo-labels" class="level3">
-<h3 class="anchored" data-anchor-id="why-pseudo-labels">Why Pseudo-Labels?</h3>
-<p>This split simulates the core value proposition: <strong>you can train a high-quality detection model with almost no manual labelling effort</strong>, by using a powerful MLLM to annotate the unlabelled pool. The 360-image test set then measures how well this pseudo-labelled model compares to one trained on human annotations.</p>
-<hr>
-</section>
-</section>
-<section id="gpt-4o-annotation-pipeline" class="level2 page-columns page-full">
-<h2 class="anchored" data-anchor-id="gpt-4o-annotation-pipeline">GPT-4o Annotation Pipeline</h2>
-<div class="column-page">
-<div class="cell" data-layout-align="default">
-<div class="cell-output-display">
-<div id="fig-annotation" class="quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-annotation-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div>
-<pre class="mermaid mermaid-js" data-label="fig-annotation">sequenceDiagram
-    participant SEED as Seed Images (18)
-    participant ANNOT as annotate.py
-    participant AZ as Azure OpenAI&lt;br/&gt;gpt-4o
-    participant STORE as ADLS&lt;br/&gt;pseudo_labels.json
-
-    ANNOT-&gt;&gt;SEED: Load 3 examples per class
-    ANNOT-&gt;&gt;ANNOT: Encode to base64
-    loop For each unlabelled image (~1,420)
-        ANNOT-&gt;&gt;AZ: Few-shot prompt\n+ query image
-        AZ--&gt;&gt;ANNOT: DefectPrediction JSON\n{class, conf, reasoning}
-        ANNOT-&gt;&gt;STORE: Append result
-    end
-    ANNOT-&gt;&gt;STORE: Write final pseudo_labels.json
-</pre>
-</div>
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-annotation-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;2: Offline pseudo-labelling pipeline
-</figcaption>
-</figure>
-</div>
-</div>
-</div>
-</div>
-<p><strong>Cost estimate for annotation run:</strong></p>
+<section id="why-two-datasets" class="level2 page-columns page-full">
+<h2 class="anchored" data-anchor-id="why-two-datasets">Why two datasets</h2>
+<p>The cascade architecture has two distinct data appetites:</p>
+<ol type="1">
+<li><strong>The autoencoder needs a <em>lot</em> of defect-free metal.</strong> The more variety it sees as “normal”, the less it over-flags benign textures at inference time. It also benefits from <em>domain breadth</em> — exposure to multiple plausible “normal metal surface” textures keeps it from overfitting to a single factory’s lighting.</li>
+<li><strong>The detector needs labelled defects with bounding boxes.</strong> Few public industrial datasets supply both at scale.</li>
+</ol>
+<p>No single public dataset gives you both at the volume this project needs. Combining two does.</p>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 46%">
-<col style="width: 53%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
 </colgroup>
 <thead>
 <tr class="header">
-<th>Item</th>
-<th>Value</th>
+<th>Dataset</th>
+<th>Role</th>
+<th>Why we use it</th>
+<th>Why we don’t use it for everything</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>Images to annotate</td>
-<td>~1,420</td>
+<td><strong>KSDD2</strong></td>
+<td>AE normals + OOD detector test</td>
+<td>~2,979 defect-free metal images, real industrial capture</td>
+<td>Only ~356 defectives; weak masks; non-commercial licence</td>
 </tr>
 <tr class="even">
-<td>Avg tokens per request (input)</td>
-<td>~2,500 (18 seed images + system prompt)</td>
-</tr>
-<tr class="odd">
-<td>Avg tokens per response</td>
-<td>~50</td>
-</tr>
-<tr class="even">
-<td>GPT-4o price (input / 1M tokens)</td>
-<td>$2.50</td>
-</tr>
-<tr class="odd">
-<td>GPT-4o price (output / 1M tokens)</td>
-<td>$10.00</td>
-</tr>
-<tr class="even">
-<td><strong>Estimated total cost</strong></td>
-<td><strong>~$9.00</strong></td>
+<td><strong>Severstal</strong></td>
+<td>AE normals + YOLO training + in-domain test</td>
+<td>~12,500 images, ~6,600 defectives with RLE masks across 4 classes</td>
+<td>Single domain (flat steel) — would over-specialise the AE</td>
 </tr>
 </tbody>
 </table>
-<div class="callout callout-style-default callout-tip callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Tip</span>One-Off Cost
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>The annotation run is a <strong>one-time offline cost</strong>. Once <code>pseudo_labels.json</code> is generated and stored in ADLS, YOLOv8 can be retrained from it at negligible cost. This is the key economic argument for the cascade approach.</p>
-</div>
-</div>
-<hr>
-</section>
-<section id="data-engineering-on-azure" class="level2 page-columns page-full">
-<h2 class="anchored" data-anchor-id="data-engineering-on-azure">Data Engineering on Azure</h2>
 <div class="column-page">
 <div class="cell" data-layout-align="default">
 <div class="cell-output-display">
-<div id="fig-data-pipeline" class="quarto-float quarto-figure quarto-figure-center anchored">
+<div id="fig-datasets" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-data-pipeline-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div aria-describedby="fig-datasets-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <div>
-<pre class="mermaid mermaid-js" data-label="fig-data-pipeline">flowchart TB
-    subgraph LOCAL["Local / GitHub Codespaces"]
-        DOWNLOAD["kaggle datasets download\nneu-metal-surface-defects"]
-        SPLIT["uv run python\nsrc/cascade_defect/data/split.py"]
+<pre class="mermaid mermaid-js" data-label="fig-datasets">flowchart LR
+    subgraph KSDD["KSDD2 (3,335 images)"]
+        K_NORM["Normal × 2,979"]
+        K_DEF["Defective × 356"]
     end
 
-    subgraph ADLS["Azure Data Lake Gen2"]
-        direction LR
-        R["raw/NEU-DET/\n1800 images"]
-        SP["splits/\n├── seed/ (18)\n├── unlabelled/ (~1420)\n└── test/ (360)"]
-        PL["processed/\npseudo_labels.json"]
+    subgraph SEV["Severstal (~12,500 images)"]
+        S_NORM["Normal × ~5,900"]
+        S_DEF["Defective × ~6,600&lt;br/&gt;(RLE masks, 4 classes)"]
     end
 
-    subgraph AML["Azure ML Workspace"]
-        DS["Registered Dataset\nneu-defects-v1"]
-        JOB["Training Job\nStandard_NC6s_v3"]
-    end
+    AE["Layer 1&lt;br/&gt;Autoencoder&lt;br/&gt;(union of normals)"]
+    YOLO["Layer 2&lt;br/&gt;YOLOv8n&lt;br/&gt;(Severstal only)"]
+    OOD["Cascade test — Track C&lt;br/&gt;OOD generalisation"]
+    INDOM["Cascade test — Track A&lt;br/&gt;in-domain"]
+    KTEST["Cascade test — Track B&lt;br/&gt;second domain, AE+Oracle"]
 
-    DOWNLOAD --&gt; R
-    R --&gt; SPLIT
-    SPLIT --&gt; SP
-    SP --&gt; PL
-    SP --&gt; DS
-    DS --&gt; JOB
+    K_NORM --&gt; AE
+    S_NORM --&gt; AE
+    S_DEF  --&gt; YOLO
+    S_DEF  --&gt; INDOM
+    S_NORM --&gt; INDOM
+    K_DEF  --&gt; KTEST
+    K_NORM --&gt; KTEST
+    K_DEF  --&gt; OOD
+
+    style AE fill:#dbeafe,stroke:#3b82f6
+    style YOLO fill:#dcfce7,stroke:#22c55e
 </pre>
 </div>
 </div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-data-pipeline-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;3: End-to-end data pipeline on Azure
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-datasets-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Where each dataset feeds the cascade
 </figcaption>
 </figure>
 </div>
 </div>
 </div>
 </div>
-<section id="commands" class="level3">
-<h3 class="anchored" data-anchor-id="commands">Commands</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Download from Kaggle (requires kaggle.json in ~/.kaggle/)</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run kaggle datasets download yiyang-feng/neu-metal-surface-defects-database <span class="at">-p</span> data/raw/</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Run the split</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python src/cascade_defect/data/split.py <span class="dt">\</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">--raw-dir</span> data/raw/NEU-DET/images <span class="dt">\</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">--output-dir</span> data/splits</span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Upload to ADLS</span></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="ex">az</span> storage blob upload-batch <span class="dt">\</span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">--account-name</span> cascadedefectadls <span class="dt">\</span></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">--destination</span> raw <span class="dt">\</span></span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">--source</span> data/raw <span class="dt">\</span></span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">--auth-mode</span> login</span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="ex">az</span> storage blob upload-batch <span class="dt">\</span></span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">--account-name</span> cascadedefectadls <span class="dt">\</span></span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">--destination</span> splits <span class="dt">\</span></span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">--source</span> data/splits <span class="dt">\</span></span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">--auth-mode</span> login</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<hr>
 </section>
+<section id="the-combination-strategy" class="level2">
+<h2 class="anchored" data-anchor-id="the-combination-strategy">The combination strategy</h2>
+<p>Naively concatenating the two datasets fails for a subtle reason: KSDD2 images are roughly 230×640 portrait crops of a commutator surface, while Severstal is 1600×256 wide strips of flat steel. Their per-pixel intensity statistics are not comparable. If you train one autoencoder on the union and pick a single MSE threshold, the dataset with higher intrinsic reconstruction error dominates — and the other gets either flagged on every frame or ignored entirely.</p>
+<p>The plan handles this in three places:</p>
+<ol type="1">
+<li><strong>Common canvas.</strong> Every image is resized to a 256×256 square before it touches the AE — KSDD2 by centre-crop, Severstal by tile-sampling. This is imperfect (Severstal tiles lose long-range context) but keeps the model simple and CPU-trainable.</li>
+<li><strong>Per-domain thresholds.</strong> After training, we compute the AE’s MSE on <em>separate</em> held-out normals from each dataset and derive <code>τ_ksdd2</code> and <code>τ_severstal</code> independently as <code>mean + 3σ</code>. The router selects which τ to apply based on a <code>domain</code> hint at request time.</li>
+<li><strong>Train YOLO on Severstal alone.</strong> KSDD2’s defect masks are coarse and single-class; mixing them in would dilute the four-class signal Severstal gives us. KSDD2 defects become an explicit OOD test instead.</li>
+</ol>
 </section>
-<section id="label-schema-pydantic" class="level2">
-<h2 class="anchored" data-anchor-id="label-schema-pydantic">Label Schema (Pydantic)</h2>
-<p>The structured output from GPT-4o is validated against this Pydantic model before being stored:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> DefectPrediction(BaseModel):</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    defect_class: <span class="bu">str</span>       <span class="co"># One of 6 NEU classes, or "no_defect"</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    confidence: <span class="bu">float</span>       <span class="co"># 0.0 – 1.0</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    reasoning: <span class="bu">str</span>          <span class="co"># One-sentence justification</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    bounding_box_present: <span class="bu">bool</span>  <span class="co"># Did GPT-4o identify a localised region?</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>This schema is enforced at the API level using <code>client.beta.chat.completions.parse()</code>, which guarantees that malformed GPT-4o responses raise a <code>ValidationError</code> rather than silently corrupting the label database.</p>
+<section id="the-split-layout" class="level2">
+<h2 class="anchored" data-anchor-id="the-split-layout">The split layout</h2>
+<p><code>src/cascade_defect/data/split_metal.py</code> produces this deterministic layout under <code>data/splits_metal/</code>:</p>
+<pre><code>ae_train/                         # KSDD2 + Severstal normals (~7,500 imgs)
+ae_val/
+    ksdd2/                        # 10% of KSDD2 train normals → derive τ_ksdd2
+    severstal/                    # 10% of remaining Severstal normals → derive τ_severstal
+yolo_train/                       # 80% of Severstal defectives
+yolo_val/                         # 20% of Severstal defectives
+cascade_test/
+    severstal/{normal,defective}  # 20% holdout from each Severstal class
+    ksdd2/{normal,defective}      # KSDD2 official test split (untouched)
+manifest.json</code></pre>
+<p>The split is reproducible — same seed, same on-disk dataset, same files in every directory.</p>
+</section>
+<section id="the-three-evaluation-tracks" class="level2">
+<h2 class="anchored" data-anchor-id="the-three-evaluation-tracks">The three evaluation tracks</h2>
+<p>This is the part that the v1 NEU build couldn’t do honestly:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Track</th>
+<th>Test set</th>
+<th>What it measures</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>A — In-domain</strong></td>
+<td>Severstal cascade_test (normals + defectives)</td>
+<td>Headline number: precision, recall, F1, cost/latency. With real negatives, the L1 drop rate finally pays for itself.</td>
+</tr>
+<tr class="even">
+<td><strong>B — Second domain</strong></td>
+<td>KSDD2 cascade_test (AE + Oracle, no YOLO)</td>
+<td>Does the cascade survive a different metal domain without retraining the detector?</td>
+</tr>
+<tr class="odd">
+<td><strong>C — OOD detector</strong></td>
+<td>KSDD2 defectives only, YOLO standalone</td>
+<td>How badly does a Severstal-trained YOLO miss commutator defects? Quantifies the cost of the missing class.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="layer-3-prompt" class="level2">
+<h2 class="anchored" data-anchor-id="layer-3-prompt">Layer 3 prompt</h2>
+<p>The Oracle keeps its few-shot, structured-output design from v1. The schema shrinks to five labels — Severstal’s four named classes plus a catch-all for KSDD2-style anomalies the YOLO doesn’t know about:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> DefectPrediction(BaseModel):</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    defect_class: Literal[</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>        <span class="st">"pitting"</span>, <span class="st">"inclusion"</span>, <span class="st">"scratch"</span>, <span class="st">"patch"</span>,</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>        <span class="st">"surface_anomaly"</span>, <span class="st">"no_defect"</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    confidence: <span class="bu">float</span>          <span class="co"># 0.0 – 1.0</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    reasoning: <span class="bu">str</span>             <span class="co"># one-sentence justification</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    bounding_box_present: <span class="bu">bool</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Five reference images go in the system prompt: one from each Severstal class plus one KSDD2 defect.</p>
+</section>
+<section id="reproducing-the-data-step" class="level2">
+<h2 class="anchored" data-anchor-id="reproducing-the-data-step">Reproducing the data step</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. KSDD2 — auto-downloaded; current copy lives at data/raw/KolektorSDD2/</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="co">#    (Kolektor publishes via direct ZIP, no auth required.)</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Severstal — manual: accept the Kaggle competition rules at</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="co">#    https://www.kaggle.com/competitions/severstal-steel-defect-detection</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co">#    and unzip into data/raw/severstal-steel-defect-detection/ so it</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co">#    contains train.csv + train_images/.</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Build the unified split.</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python <span class="at">-m</span> cascade_defect.data.split_metal</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. Sanity counts.</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python <span class="at">-m</span> cascade_defect.data.ksdd2</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python <span class="at">-m</span> cascade_defect.data.severstal</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
 </section>

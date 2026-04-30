@@ -1,199 +1,154 @@
 ---
 title: "Data Strategy"
-subtitle: "From 1,800 raw images to a pseudo-labelled training set"
+subtitle: "Two industrial-metal datasets, one autoencoder, one detector"
 date: today
 ---
 
-## Dataset: NEU Metal Surface Defects
+## Why two datasets
 
-The foundation of this project is the **NEU Metal Surface Defects Database** — a widely used benchmark for surface defect detection in rolled steel manufacturing.
+The cascade architecture has two distinct data appetites:
 
-| Property | Value |
-|----------|-------|
-| Source | Kaggle (`yiyang-feng/neu-metal-surface-defects-database`) |
-| Total images | 1,800 |
-| Classes | 6 (see below) |
-| Image size | 200×200 px (greyscale) |
-| Images per class | 300 (balanced) |
+1. **The autoencoder needs a *lot* of defect-free metal.** The more variety it
+   sees as "normal", the less it over-flags benign textures at inference time.
+   It also benefits from *domain breadth* — exposure to multiple plausible
+   "normal metal surface" textures keeps it from overfitting to a single
+   factory's lighting.
+2. **The detector needs labelled defects with bounding boxes.** Few public
+   industrial datasets supply both at scale.
 
-### Defect Classes
+No single public dataset gives you both at the volume this project needs.
+Combining two does.
 
-::: {.column-page}
-```{mermaid}
-%%| label: fig-classes
-%%| fig-cap: "NEU dataset defect class taxonomy"
-flowchart TD
-    ROOT["NEU Surface Defects\n1,800 images"]
-    C1["🔵 Crazing\n300 imgs"]
-    C2["🟢 Inclusion\n300 imgs"]
-    C3["🟡 Patches\n300 imgs"]
-    C4["🟠 Pitted Surface\n300 imgs"]
-    C5["🔴 Rolled-in Scale\n300 imgs"]
-    C6["🟣 Scratches\n300 imgs"]
-
-    ROOT --> C1
-    ROOT --> C2
-    ROOT --> C3
-    ROOT --> C4
-    ROOT --> C5
-    ROOT --> C6
-```
-:::
----
-
-## The Three-Way Split
-
-We simulate a real-world factory scenario where only a tiny fraction of images are manually labelled.
+| Dataset | Role | Why we use it | Why we don't use it for everything |
+|---|---|---|---|
+| **KSDD2** | AE normals + OOD detector test | ~2,979 defect-free metal images, real industrial capture | Only ~356 defectives; weak masks; non-commercial licence |
+| **Severstal** | AE normals + YOLO training + in-domain test | ~12,500 images, ~6,600 defectives with RLE masks across 4 classes | Single domain (flat steel) — would over-specialise the AE |
 
 ::: {.column-page}
 ```{mermaid}
-%%| label: fig-split
-%%| fig-cap: "Dataset split strategy"
+%%| label: fig-datasets
+%%| fig-cap: "Where each dataset feeds the cascade"
 flowchart LR
-    RAW["NEU Dataset\n1,800 images\n6 classes"]
-
-    subgraph SEED["🌱 Few-Shot Seed (1%)"]
-        S["18 images\n3 per class\nLabels kept"]
+    subgraph KSDD["KSDD2 (3,335 images)"]
+        K_NORM["Normal × 2,979"]
+        K_DEF["Defective × 356"]
     end
 
-    subgraph UNLABELLED["🔓 Unlabelled Pool (79%)"]
-        U["~1,420 images\nLabels stripped\nPseudo-labelled by GPT-4o"]
+    subgraph SEV["Severstal (~12,500 images)"]
+        S_NORM["Normal × ~5,900"]
+        S_DEF["Defective × ~6,600<br/>(RLE masks, 4 classes)"]
     end
 
-    subgraph TEST["🧪 Golden Test Set (20%)"]
-        T["360 images\nGround-truth labels\nNever used in training"]
-    end
+    AE["Layer 1<br/>Autoencoder<br/>(union of normals)"]
+    YOLO["Layer 2<br/>YOLOv8n<br/>(Severstal only)"]
+    OOD["Cascade test — Track C<br/>OOD generalisation"]
+    INDOM["Cascade test — Track A<br/>in-domain"]
+    KTEST["Cascade test — Track B<br/>second domain, AE+Oracle"]
 
-    RAW --> SEED
-    RAW --> UNLABELLED
-    RAW --> TEST
+    K_NORM --> AE
+    S_NORM --> AE
+    S_DEF  --> YOLO
+    S_DEF  --> INDOM
+    S_NORM --> INDOM
+    K_DEF  --> KTEST
+    K_NORM --> KTEST
+    K_DEF  --> OOD
 
-    S --> PROMPT["GPT-4o\nFew-Shot System Prompt"]
-    U --> GPT4O["GPT-4o\nBatch Annotation"]
-    PROMPT --> GPT4O
-    GPT4O --> PSEUDO["Pseudo-Labels\n(YOLO format)"]
-    PSEUDO --> YOLO["YOLOv8n\nTraining"]
-
-    style SEED fill:#dcfce7,stroke:#16a34a
-    style UNLABELLED fill:#fef9c3,stroke:#ca8a04
-    style TEST fill:#fee2e2,stroke:#dc2626
+    style AE fill:#dbeafe,stroke:#3b82f6
+    style YOLO fill:#dcfce7,stroke:#22c55e
 ```
 :::
-### Why Pseudo-Labels?
 
-This split simulates the core value proposition: **you can train a high-quality detection model with almost no manual labelling effort**, by using a powerful MLLM to annotate the unlabelled pool. The 360-image test set then measures how well this pseudo-labelled model compares to one trained on human annotations.
+## The combination strategy
 
----
+Naively concatenating the two datasets fails for a subtle reason: KSDD2 images
+are roughly 230×640 portrait crops of a commutator surface, while Severstal is
+1600×256 wide strips of flat steel. Their per-pixel intensity statistics are
+not comparable. If you train one autoencoder on the union and pick a single
+MSE threshold, the dataset with higher intrinsic reconstruction error
+dominates — and the other gets either flagged on every frame or ignored
+entirely.
 
-## GPT-4o Annotation Pipeline
+The plan handles this in three places:
 
-::: {.column-page}
-```{mermaid}
-%%| label: fig-annotation
-%%| fig-cap: "Offline pseudo-labelling pipeline"
-sequenceDiagram
-    participant SEED as Seed Images (18)
-    participant ANNOT as annotate.py
-    participant AZ as Azure OpenAI<br/>gpt-4o
-    participant STORE as ADLS<br/>pseudo_labels.json
+1. **Common canvas.** Every image is resized to a 256×256 square before it
+   touches the AE — KSDD2 by centre-crop, Severstal by tile-sampling. This is
+   imperfect (Severstal tiles lose long-range context) but keeps the model
+   simple and CPU-trainable.
+2. **Per-domain thresholds.** After training, we compute the AE's MSE on
+   *separate* held-out normals from each dataset and derive
+   `τ_ksdd2` and `τ_severstal` independently as `mean + 3σ`. The router
+   selects which τ to apply based on a `domain` hint at request time.
+3. **Train YOLO on Severstal alone.** KSDD2's defect masks are coarse and
+   single-class; mixing them in would dilute the four-class signal Severstal
+   gives us. KSDD2 defects become an explicit OOD test instead.
 
-    ANNOT->>SEED: Load 3 examples per class
-    ANNOT->>ANNOT: Encode to base64
-    loop For each unlabelled image (~1,420)
-        ANNOT->>AZ: Few-shot prompt\n+ query image
-        AZ-->>ANNOT: DefectPrediction JSON\n{class, conf, reasoning}
-        ANNOT->>STORE: Append result
-    end
-    ANNOT->>STORE: Write final pseudo_labels.json
+## The split layout
+
+`src/cascade_defect/data/split_metal.py` produces this deterministic layout
+under `data/splits_metal/`:
+
 ```
-:::
-**Cost estimate for annotation run:**
-
-| Item | Value |
-|------|-------|
-| Images to annotate | ~1,420 |
-| Avg tokens per request (input) | ~2,500 (18 seed images + system prompt) |
-| Avg tokens per response | ~50 |
-| GPT-4o price (input / 1M tokens) | $2.50 |
-| GPT-4o price (output / 1M tokens) | $10.00 |
-| **Estimated total cost** | **~$9.00** |
-
-::: {.callout-tip}
-## One-Off Cost
-The annotation run is a **one-time offline cost**. Once `pseudo_labels.json` is generated and stored in ADLS, YOLOv8 can be retrained from it at negligible cost. This is the key economic argument for the cascade approach.
-:::
-
----
-
-## Data Engineering on Azure
-
-::: {.column-page}
-```{mermaid}
-%%| label: fig-data-pipeline
-%%| fig-cap: "End-to-end data pipeline on Azure"
-flowchart TB
-    subgraph LOCAL["Local / GitHub Codespaces"]
-        DOWNLOAD["kaggle datasets download\nneu-metal-surface-defects"]
-        SPLIT["uv run python\nsrc/cascade_defect/data/split.py"]
-    end
-
-    subgraph ADLS["Azure Data Lake Gen2"]
-        direction LR
-        R["raw/NEU-DET/\n1800 images"]
-        SP["splits/\n├── seed/ (18)\n├── unlabelled/ (~1420)\n└── test/ (360)"]
-        PL["processed/\npseudo_labels.json"]
-    end
-
-    subgraph AML["Azure ML Workspace"]
-        DS["Registered Dataset\nneu-defects-v1"]
-        JOB["Training Job\nStandard_NC6s_v3"]
-    end
-
-    DOWNLOAD --> R
-    R --> SPLIT
-    SPLIT --> SP
-    SP --> PL
-    SP --> DS
-    DS --> JOB
-```
-:::
-### Commands
-
-```bash
-# 1. Download from Kaggle (requires kaggle.json in ~/.kaggle/)
-uv run kaggle datasets download yiyang-feng/neu-metal-surface-defects-database -p data/raw/
-
-# 2. Run the split
-uv run python src/cascade_defect/data/split.py \
-  --raw-dir data/raw/NEU-DET/images \
-  --output-dir data/splits
-
-# 3. Upload to ADLS
-az storage blob upload-batch \
-  --account-name cascadedefectadls \
-  --destination raw \
-  --source data/raw \
-  --auth-mode login
-
-az storage blob upload-batch \
-  --account-name cascadedefectadls \
-  --destination splits \
-  --source data/splits \
-  --auth-mode login
+ae_train/                         # KSDD2 + Severstal normals (~7,500 imgs)
+ae_val/
+    ksdd2/                        # 10% of KSDD2 train normals → derive τ_ksdd2
+    severstal/                    # 10% of remaining Severstal normals → derive τ_severstal
+yolo_train/                       # 80% of Severstal defectives
+yolo_val/                         # 20% of Severstal defectives
+cascade_test/
+    severstal/{normal,defective}  # 20% holdout from each Severstal class
+    ksdd2/{normal,defective}      # KSDD2 official test split (untouched)
+manifest.json
 ```
 
----
+The split is reproducible — same seed, same on-disk dataset, same files in
+every directory.
 
-## Label Schema (Pydantic)
+## The three evaluation tracks
 
-The structured output from GPT-4o is validated against this Pydantic model before being stored:
+This is the part that the v1 NEU build couldn't do honestly:
+
+| Track | Test set | What it measures |
+|---|---|---|
+| **A — In-domain** | Severstal cascade_test (normals + defectives) | Headline number: precision, recall, F1, cost/latency. With real negatives, the L1 drop rate finally pays for itself. |
+| **B — Second domain** | KSDD2 cascade_test (AE + Oracle, no YOLO) | Does the cascade survive a different metal domain without retraining the detector? |
+| **C — OOD detector** | KSDD2 defectives only, YOLO standalone | How badly does a Severstal-trained YOLO miss commutator defects? Quantifies the cost of the missing class. |
+
+## Layer 3 prompt
+
+The Oracle keeps its few-shot, structured-output design from v1. The schema
+shrinks to five labels — Severstal's four named classes plus a catch-all for
+KSDD2-style anomalies the YOLO doesn't know about:
 
 ```python
 class DefectPrediction(BaseModel):
-    defect_class: str       # One of 6 NEU classes, or "no_defect"
-    confidence: float       # 0.0 – 1.0
-    reasoning: str          # One-sentence justification
-    bounding_box_present: bool  # Did GPT-4o identify a localised region?
+    defect_class: Literal[
+        "pitting", "inclusion", "scratch", "patch",
+        "surface_anomaly", "no_defect"
+    ]
+    confidence: float          # 0.0 – 1.0
+    reasoning: str             # one-sentence justification
+    bounding_box_present: bool
 ```
 
-This schema is enforced at the API level using `client.beta.chat.completions.parse()`, which guarantees that malformed GPT-4o responses raise a `ValidationError` rather than silently corrupting the label database.
+Five reference images go in the system prompt: one from each Severstal class
+plus one KSDD2 defect.
+
+## Reproducing the data step
+
+```bash
+# 1. KSDD2 — auto-downloaded; current copy lives at data/raw/KolektorSDD2/
+#    (Kolektor publishes via direct ZIP, no auth required.)
+
+# 2. Severstal — manual: accept the Kaggle competition rules at
+#    https://www.kaggle.com/competitions/severstal-steel-defect-detection
+#    and unzip into data/raw/severstal-steel-defect-detection/ so it
+#    contains train.csv + train_images/.
+
+# 3. Build the unified split.
+uv run python -m cascade_defect.data.split_metal
+
+# 4. Sanity counts.
+uv run python -m cascade_defect.data.ksdd2
+uv run python -m cascade_defect.data.severstal
+```

@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="j-jayes">
-<meta name="dcterms.date" content="2026-04-24">
+<meta name="dcterms.date" content="2026-04-30">
 
 <title>Project Cascade Defect</title>
 <style>
@@ -270,10 +270,6 @@ ul.task-list li input[type="checkbox"] {
 <span class="menu-text">Home</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./intro.html"> 
-<span class="menu-text">Problem</span></a>
-  </li>  
-  <li class="nav-item">
     <a class="nav-link" href="./architecture.html"> 
 <span class="menu-text">Architecture</span></a>
   </li>  
@@ -314,10 +310,9 @@ ul.task-list li input[type="checkbox"] {
    
   <ul>
   <li><a href="#overview" id="toc-overview" class="nav-link active" data-scroll-target="#overview">Overview</a></li>
-  <li><a href="#why-a-cascade" id="toc-why-a-cascade" class="nav-link" data-scroll-target="#why-a-cascade">Why a Cascade?</a></li>
-  <li><a href="#key-technologies" id="toc-key-technologies" class="nav-link" data-scroll-target="#key-technologies">Key Technologies</a></li>
-  <li><a href="#project-structure" id="toc-project-structure" class="nav-link" data-scroll-target="#project-structure">Project Structure</a></li>
-  <li><a href="#quick-links" id="toc-quick-links" class="nav-link" data-scroll-target="#quick-links">Quick Links</a></li>
+  <li><a href="#the-data-pivot" id="toc-the-data-pivot" class="nav-link" data-scroll-target="#the-data-pivot">The data pivot</a></li>
+  <li><a href="#why-a-cascade" id="toc-why-a-cascade" class="nav-link" data-scroll-target="#why-a-cascade">Why a cascade?</a></li>
+  <li><a href="#quick-links" id="toc-quick-links" class="nav-link" data-scroll-target="#quick-links">Quick links</a></li>
   </ul>
 </nav>
     </div>
@@ -328,7 +323,7 @@ ul.task-list li input[type="checkbox"] {
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
 <h1 class="title">Project Cascade Defect</h1>
-<p class="subtitle lead">A Cost-Effective ML Cascade Pipeline for Real-Time Rolled-Metal Surface Defect Detection</p>
+<p class="subtitle lead">A cost-effective ML cascade for real-time rolled-metal surface defect detection</p>
 </div>
 
 
@@ -345,7 +340,7 @@ ul.task-list li input[type="checkbox"] {
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">April 24, 2026</p>
+      <p class="date">April 30, 2026</p>
     </div>
   </div>
   
@@ -359,8 +354,8 @@ ul.task-list li input[type="checkbox"] {
 
 <section id="overview" class="level2 page-columns page-full">
 <h2 class="anchored" data-anchor-id="overview">Overview</h2>
-<p><strong>Project Cascade Defect</strong> is a proof-of-concept machine learning portfolio project that demonstrates how to optimise a defect-detection system for <strong>inference cost, latency, and accuracy</strong> simultaneously.</p>
-<p>Instead of running every factory camera frame through an expensive Multimodal Large Language Model (MLLM), we route frames through a three-layer <strong>Cascade Architecture</strong> — where most frames are handled cheaply and quickly, and only ambiguous edge-cases escalate to GPT-4o.</p>
+<p><strong>Project Cascade Defect</strong> is an applied ML portfolio project that treats one question as the whole point: <em>if a multimodal LLM can already answer “is this metal sheet defective?”, how do you build a system around it that makes the answer cheap enough to run on every camera frame?</em></p>
+<p>The answer is a <strong>three-layer cascade</strong>. A tiny convolutional autoencoder discards anything that looks like clean metal. A small object detector (YOLOv8n) handles the easy positives. Only ambiguous frames escalate to an Azure OpenAI vision model. Most frames stop in milliseconds; only the genuinely hard ones cost cents.</p>
 <div class="column-page">
 <div class="cell" data-layout-align="default">
 <div class="cell-output-display">
@@ -369,33 +364,30 @@ ul.task-list li input[type="checkbox"] {
 <div aria-describedby="fig-overview-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <div>
 <pre class="mermaid mermaid-js" data-label="fig-overview">flowchart LR
-    INPUT([🖼️ Raw Frame])
+    INPUT([Raw frame])
 
     subgraph L1["Layer 1 — Gatekeeper"]
-        AE["Conv Autoencoder\nMSE Reconstruction"]
-        T1{"MSE &gt; τ?"}
+        AE["Conv Autoencoder&lt;br/&gt;MSE reconstruction"]
+        T1{MSE &gt; τ?}
     end
 
     subgraph L2["Layer 2 — Specialist"]
-        YOLO["YOLOv8n\nInference"]
-        T2{"Conf ≥ 85%?"}
+        YOLO["YOLOv8n&lt;br/&gt;4-class detector"]
+        T2{conf ≥ 0.85?}
     end
 
     subgraph L3["Layer 3 — Oracle"]
-        GPT["GPT-4o\nFew-Shot Prompt"]
+        GPT["Azure OpenAI&lt;br/&gt;vision + few-shot"]
     end
 
-    DISCARD(["✅ No Defect"])
-    LOG(["📋 Log &amp; Archive"])
+    DISCARD([No defect])
+    LOG([Log + label])
 
-    INPUT --&gt; AE
-    AE --&gt; T1
+    INPUT --&gt; AE --&gt; T1
     T1 -- No --&gt; DISCARD
-    T1 -- Yes --&gt; YOLO
-    YOLO --&gt; T2
+    T1 -- Yes --&gt; YOLO --&gt; T2
     T2 -- Yes --&gt; LOG
-    T2 -- No --&gt; GPT
-    GPT --&gt; LOG
+    T2 -- No --&gt; GPT --&gt; LOG
 
     style L1 fill:#dbeafe,stroke:#3b82f6
     style L2 fill:#dcfce7,stroke:#22c55e
@@ -404,7 +396,7 @@ ul.task-list li input[type="checkbox"] {
 </div>
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-overview-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;1: High-level cascade pipeline overview
+Figure&nbsp;1: High-level cascade pipeline
 </figcaption>
 </figure>
 </div>
@@ -412,74 +404,87 @@ Figure&nbsp;1: High-level cascade pipeline overview
 </div>
 </div>
 </section>
-<section id="why-a-cascade" class="level2">
-<h2 class="anchored" data-anchor-id="why-a-cascade">Why a Cascade?</h2>
+<section id="the-data-pivot" class="level2">
+<h2 class="anchored" data-anchor-id="the-data-pivot">The data pivot</h2>
+<p>Earlier iterations of this project trained on whatever surface-defect dataset was easiest to obtain — first NEU (a balanced 6-class <strong>classification</strong> benchmark with no defect-free frames), and briefly an electronics dataset (VisA / PCB1) that had the right <em>shape</em> of data but the wrong <em>domain</em>. Both made the autoencoder’s gatekeeper role contrived: there was nothing for it to learn as “normal”.</p>
+<p>The current build uses two datasets that match the actual goal — <em>flag damage on rolled metal surfaces</em> — and that ship with <strong>abundant defect-free imagery</strong>:</p>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 16%">
+<col style="width: 16%">
+<col style="width: 22%">
+<col style="width: 22%">
+<col style="width: 22%">
+</colgroup>
 <thead>
 <tr class="header">
-<th>Approach</th>
-<th>Cost per frame</th>
-<th>Latency</th>
-<th>Accuracy</th>
+<th>Dataset</th>
+<th>Domain</th>
+<th style="text-align: right;">Total</th>
+<th style="text-align: right;">Normal</th>
+<th style="text-align: right;">Defective</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>Pure MLLM (GPT-4o for everything)</td>
-<td>~$0.002</td>
-<td>~3 s</td>
-<td>★★★★★</td>
+<td><strong>KSDD2</strong> (Kolektor Surface-Defect Dataset 2)</td>
+<td>Commutator metal surface</td>
+<td style="text-align: right;">3,335</td>
+<td style="text-align: right;">~2,979 (89%)</td>
+<td style="text-align: right;">~356</td>
 </tr>
 <tr class="even">
-<td>Pure Classical (YOLOv8 only)</td>
-<td>~$0.000001</td>
-<td>~15 ms</td>
-<td>★★★★☆</td>
-</tr>
-<tr class="odd">
-<td><strong>Cascade (this project)</strong></td>
-<td>~$0.0000015</td>
-<td>~18 ms avg</td>
-<td>★★★★★</td>
+<td><strong>Severstal Steel Defect Detection</strong></td>
+<td>Flat-rolled steel sheet</td>
+<td style="text-align: right;">~12,500</td>
+<td style="text-align: right;">~5,900 (47%)</td>
+<td style="text-align: right;">~6,600</td>
 </tr>
 </tbody>
 </table>
-<p>The cascade architecture captures the best of both worlds: classical computer vision handles the 95%+ of “easy” cases in milliseconds, while GPT-4o is reserved for the rare edge cases where certainty matters most.</p>
+<p>Both contribute defect-free frames to the autoencoder’s training pool; Severstal additionally supplies the bounding-box training signal for YOLO. KSDD2 defects are deliberately held out as an out-of-distribution test for the detector. See <a href="./data-strategy.html">Data Strategy</a> for the full split design.</p>
 </section>
-<section id="key-technologies" class="level2">
-<h2 class="anchored" data-anchor-id="key-technologies">Key Technologies</h2>
-<ul>
-<li><strong>Model Training:</strong> Azure Machine Learning (AML) on <code>Standard_NC6s_v3</code> compute</li>
-<li><strong>Inference:</strong> Azure Container Apps (ACA) with NVIDIA T4 GPU, scale-to-zero via KEDA</li>
-<li><strong>Event Bus:</strong> Azure Service Bus (decoupled queue between cascade layers)</li>
-<li><strong>Storage:</strong> Azure Data Lake Storage Gen2</li>
-<li><strong>MLLM:</strong> Azure OpenAI <code>gpt-4o</code> with Pydantic-enforced structured JSON output</li>
-<li><strong>Package Manager:</strong> <code>uv</code> (fast, reproducible Python dependency management)</li>
-<li><strong>Website:</strong> Quarto (this site — Mermaid.js diagrams, executable Python cells)</li>
-</ul>
-</section>
-<section id="project-structure" class="level2">
-<h2 class="anchored" data-anchor-id="project-structure">Project Structure</h2>
-<pre><code>cascade-defect/
-├── .agents/skills/          # Copilot domain-knowledge files
-├── .claude/plans/           # Project implementation plan
-├── .devcontainer/           # VS Code / Codespaces container config
-├── .pre-commit-config.yaml  # nbstripout + ruff hooks
-├── docs/                    # This Quarto website
-├── src/cascade_defect/      # Python source package
-│   ├── data/                # Dataset split utilities
-│   ├── layer1_autoencoder/  # Conv AE model, training, FastAPI app
-│   ├── layer2_yolo/         # YOLOv8 inference FastAPI app
-│   └── layer3_gpt4o/        # GPT-4o oracle FastAPI app
-├── tests/                   # pytest unit tests
-└── pyproject.toml           # uv-managed project config</code></pre>
+<section id="why-a-cascade" class="level2">
+<h2 class="anchored" data-anchor-id="why-a-cascade">Why a cascade?</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Approach</th>
+<th style="text-align: right;">Cost / frame</th>
+<th style="text-align: right;">Latency</th>
+<th style="text-align: right;">Accuracy on classified frames</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Pure MLLM (every frame)</td>
+<td style="text-align: right;">~$0.001</td>
+<td style="text-align: right;">~3 s</td>
+<td style="text-align: right;">★★★★★</td>
+</tr>
+<tr class="even">
+<td>Pure YOLO (every frame)</td>
+<td style="text-align: right;">~$0.000001</td>
+<td style="text-align: right;">~15 ms</td>
+<td style="text-align: right;">★★★★☆</td>
+</tr>
+<tr class="odd">
+<td><strong>Cascade (this project)</strong></td>
+<td style="text-align: right;">~$0.00001 avg</td>
+<td style="text-align: right;">~25 ms median</td>
+<td style="text-align: right;">★★★★★</td>
+</tr>
+</tbody>
+</table>
+<p>The cascade is the only architecture that buys you the MLLM’s accuracy without its bill — and the only one whose economics improve as more of the camera feed turns out to be defect-free.</p>
 </section>
 <section id="quick-links" class="level2">
-<h2 class="anchored" data-anchor-id="quick-links">Quick Links</h2>
+<h2 class="anchored" data-anchor-id="quick-links">Quick links</h2>
 <ul>
-<li><a href="./architecture.html">Architecture →</a> — Detailed system design with Mermaid diagrams</li>
-<li><a href="./data-strategy.html">Data Strategy →</a> — Dataset splits and pseudo-labelling pipeline</li>
-<li><a href="./evaluation.html">Evaluation →</a> — Latency, cost, and accuracy benchmarks</li>
+<li><a href="./architecture.html">Architecture →</a> — system design and Azure topology</li>
+<li><a href="./data-strategy.html">Data Strategy →</a> — KSDD2 + Severstal combination plan</li>
+<li><a href="./evaluation.html">Evaluation →</a> — measured cost / latency / accuracy</li>
+<li><a href="./inferences.html">Inferences →</a> — frame-by-frame walkthroughs</li>
 </ul>
 
 
