@@ -46,6 +46,7 @@ def main(
     data_dir: Path = DEFAULT_DATA_DIR,
     output_dir: Path = DEFAULT_OUTPUT,
     *,
+    backbone: str = "resnet18",
     image_size: int = DEFAULT_IMAGE_SIZE,
     bank_fraction: float = 0.10,
     k: int = DEFAULT_K,
@@ -53,7 +54,7 @@ def main(
     device: str | None = None,
 ) -> dict:
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-    extractor = _FeatureExtractor()
+    extractor = _FeatureExtractor(backbone=backbone)
 
     train_paths = _list_images(data_dir / "ae_train")
     by_domain: dict[str, list[Path]] = {d: [] for d in DOMAINS}
@@ -74,6 +75,7 @@ def main(
         if not val_paths:
             logger.warning("No val normals for %s — calibration will be degenerate", d)
             from cascade_defect.layer1_autoencoder.patchcore import PatchCoreCalibration
+
             calibs[d] = PatchCoreCalibration(0.0, 1.0, 0)
         else:
             logger.info("Calibrating %s on %d held-out normals", d, len(val_paths))
@@ -86,6 +88,7 @@ def main(
         output_dir,
         bank_by_domain=banks,
         calibration_by_domain=calibs,
+        backbone=extractor.backbone_name,
         image_size=image_size,
         k=k,
         quantile=quantile,
@@ -100,6 +103,12 @@ if __name__ == "__main__":
     parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--image-size", type=int, default=DEFAULT_IMAGE_SIZE)
+    parser.add_argument(
+        "--backbone",
+        choices=["resnet18", "wrn50"],
+        default="resnet18",
+        help="PatchCore feature extractor backbone.",
+    )
     parser.add_argument("--bank-fraction", type=float, default=0.10)
     parser.add_argument("--k", type=int, default=DEFAULT_K)
     parser.add_argument("--quantile", type=float, default=DEFAULT_QUANTILE)
@@ -107,6 +116,7 @@ if __name__ == "__main__":
     main(
         data_dir=args.data_dir,
         output_dir=args.output_dir,
+        backbone=args.backbone,
         image_size=args.image_size,
         bank_fraction=args.bank_fraction,
         k=args.k,

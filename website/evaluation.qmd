@@ -2,7 +2,7 @@
 title: "Evaluation"
 subtitle: "Three tracks: in-domain, second-domain, OOD"
 date: today
-jupyter: cascade-defect
+jupyter: python3
 execute:
   echo: false
   warning: false
@@ -69,6 +69,21 @@ else:
 
 **Acceptance bar:** F1 ≥ 0.70, L1 drop rate on negatives ≥ 0.80, cost
 advantage over Oracle-only ≥ 5×.
+
+::: {.callout-warning}
+## Known limitation on the current Track A checkpoint
+
+The latest published Track A run (F1 ≈ 0.65) is below the 0.70 acceptance bar.
+This is not a hidden failure mode: it is a known trade-off of the current
+operating point on Severstal. PatchCore-lite remains weak on high-texture
+Severstal negatives (low L1 negative-drop rate), so too many clean frames
+flow into L2/L3 and inflate false positives.
+
+The practical interpretation is:
+- **L1-only** is still the strongest binary defect gate on this slice.
+- **Cascade** buys class labels + audit traceability, but pays an F1/precision tax.
+- **Next optimisation lever** is L2 operating point + input scale (YOLOv8s/1024).
+:::
 
 ## Track B — KSDD2 second-domain (AE + Oracle, no YOLO)
 
@@ -160,13 +175,56 @@ uv run python -m cascade_defect.eval.run_cascade_metal \
 uv run python -m cascade_defect.eval.threshold_sweep \
     --trace reports/eval_cascade_metal_k1_calibrated.jsonl --persist-knee
 
-# 8. Roll up to reports/metrics_metal.json and re-render this page.
+# 8. Sweep L2 confidence thresholds on Track A to map F1 vs L3 cost.
+#    Best results come from traces generated with L3 enabled and a high
+#    --l2-conf-threshold (e.g. 1.01) so all post-L1 cases have an L3 fallback.
+uv run python -m cascade_defect.eval.l2_threshold_sweep \
+    --trace reports/eval_cascade_metal_k1_calibrated.jsonl \
+    --track A \
+    --thresholds 0.35 0.40 0.45 0.50 0.55 0.60 \
+    --out reports/l2_threshold_sweep.json
+
+# 9. Roll up to reports/metrics_metal.json and re-render this page.
 Copy-Item reports/eval_cascade_metal_k1_calibrated.jsonl `
     reports/eval_cascade_metal.jsonl -Force
 uv run python -m cascade_defect.eval.metrics_metal
 uv run python scripts/render_inference_panels_metal.py
 quarto render website/
 ```
+
+### Track A operating-point PR / cost trade-off
+
+The cascade's production behaviour is controlled by two thresholds:
+`τ` (L1 z-score gate) and the L2 confidence short-circuit threshold.
+`reports/l2_threshold_sweep.json` plots the Track A precision/recall/F1 and
+L3-spend trade-off for the L2 threshold sweep.
+
+```{python}
+#| label: l2-threshold-tradeoff
+import json
+from pathlib import Path
+import pandas as pd
+
+L2_SWEEP_PATH = Path("../reports/l2_threshold_sweep.json")
+if L2_SWEEP_PATH.exists():
+    sweep = json.loads(L2_SWEEP_PATH.read_text(encoding="utf-8"))
+    rows = sweep.get("results", [])
+    if rows:
+        df = pd.DataFrame(rows)[[
+            "threshold", "precision", "recall", "f1",
+            "l3_call_rate", "cost_per_100k_frames_usd"
+        ]].sort_values("threshold")
+        df
+    else:
+        print("No L2 sweep rows found.")
+else:
+    print("Run `python -m cascade_defect.eval.l2_threshold_sweep ...` to render this table.")
+```
+
+This table is the operational PR curve proxy for deployment: moving the L2
+threshold right usually improves precision and cost, but may hurt recall.
+The selected threshold should be justified against plant-level miss-cost, not
+just maximum F1.
 
 ## Phase K — Calibration, Caching, and the production-YOLO uplift
 
@@ -367,6 +425,21 @@ else:
 The L3 escalation budget ("first response from GPT-4.1-mini") sits at
 ~2.5 s p50 on the same hardware — three orders of magnitude slower than
 L1+L2, which is exactly why escalation gating matters.
+
+### 4.1 Buyer economics — when is cascade cheaper than a simple detector?
+
+A practical buyer question is whether the extra architecture complexity beats
+a simpler detector-only deployment on total cost. A lightweight break-even
+model is:
+
+`Total cascade/day = fixed_infra/day + (oracle_calls/day × oracle_cost/call)`
+
+`Total simple/day = fixed_vm/day (+ optional operator review cost/day)`
+
+The threshold sweep above gives `oracle_calls/day` directly via `l3_call_rate`.
+As a rule: if escalation stays low and frame volume is high, cascade wins; if
+escalation is high and the buyer only needs binary reject/accept, L1-only or
+detector-only is usually cheaper.
 
 ### 5. Robustness smoke test
 
