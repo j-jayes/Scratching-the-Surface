@@ -15,6 +15,7 @@ from pathlib import Path
 DEFAULT_TRACE = Path("reports/eval_cascade_metal.jsonl")
 DEFAULT_OUT = Path("reports/l2_threshold_sweep.json")
 DEFAULT_THRESHOLDS = [0.35, 0.40, 0.45, 0.50, 0.55, 0.60]
+KNEE_LAMBDA = 0.05  # 1pp L3-call-rate increase is penalized as 0.05 F1 points.
 PRICE_IN = 0.40 / 1e6
 PRICE_OUT = 1.60 / 1e6
 
@@ -130,12 +131,13 @@ def main() -> None:
 
     records = [r for r in _load(args.trace) if r.get("track") == args.track]
     rows = [_score(records, t) for t in args.thresholds]
-    best = max(rows, key=lambda x: x["f1"] - 0.05 * x["l3_call_rate"]) if rows else None
+    best = max(rows, key=lambda x: x["f1"] - KNEE_LAMBDA * x["l3_call_rate"]) if rows else None
 
     payload = {
         "trace_path": str(args.trace),
         "track": args.track,
         "thresholds": args.thresholds,
+        "knee_lambda": KNEE_LAMBDA,
         "results": rows,
         "best_by_f1_minus_cost": best,
     }
