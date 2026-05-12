@@ -15,9 +15,9 @@ from pathlib import Path
 DEFAULT_TRACE = Path("reports/eval_cascade_metal.jsonl")
 DEFAULT_OUT = Path("reports/l2_threshold_sweep.json")
 DEFAULT_THRESHOLDS = [0.35, 0.40, 0.45, 0.50, 0.55, 0.60]
-KNEE_LAMBDA = 0.05  # 1pp L3-call-rate increase is penalized as 0.05 F1 points.
-PRICE_IN = 0.40 / 1e6
-PRICE_OUT = 1.60 / 1e6
+L3_CALL_RATE_PENALTY = 0.05  # 1pp L3-call-rate increase is penalized as 0.05 F1 points.
+PRICE_PER_INPUT_TOKEN = 0.40 / 1e6
+PRICE_PER_OUTPUT_TOKEN = 1.60 / 1e6
 
 
 def _load(path: Path) -> list[dict]:
@@ -36,7 +36,14 @@ def _oracle_cost(step3: dict | None) -> float:
     if not step3:
         return 0.0
     usage = step3.get("usage", {})
-    return usage.get("prompt_tokens", 0) * PRICE_IN + usage.get("completion_tokens", 0) * PRICE_OUT
+    return (
+        usage.get("prompt_tokens", 0) * PRICE_PER_INPUT_TOKEN
+        + usage.get("completion_tokens", 0) * PRICE_PER_OUTPUT_TOKEN
+    )
+
+
+def _cost_adjusted_f1(row: dict) -> float:
+    return row["f1"] - L3_CALL_RATE_PENALTY * row["l3_call_rate"]
 
 
 def _decision_for_threshold(rec: dict, threshold: float) -> tuple[str, float, bool]:
@@ -131,13 +138,13 @@ def main() -> None:
 
     records = [r for r in _load(args.trace) if r.get("track") == args.track]
     rows = [_score(records, t) for t in args.thresholds]
-    best = max(rows, key=lambda x: x["f1"] - KNEE_LAMBDA * x["l3_call_rate"]) if rows else None
+    best = max(rows, key=_cost_adjusted_f1) if rows else None
 
     payload = {
         "trace_path": str(args.trace),
         "track": args.track,
         "thresholds": args.thresholds,
-        "knee_lambda": KNEE_LAMBDA,
+        "l3_call_rate_penalty": L3_CALL_RATE_PENALTY,
         "results": rows,
         "best_by_f1_minus_cost": best,
     }
