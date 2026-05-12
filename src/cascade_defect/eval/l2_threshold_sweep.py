@@ -15,7 +15,9 @@ from pathlib import Path
 DEFAULT_TRACE = Path("reports/eval_cascade_metal.jsonl")
 DEFAULT_OUT = Path("reports/l2_threshold_sweep.json")
 DEFAULT_THRESHOLDS = [0.35, 0.40, 0.45, 0.50, 0.55, 0.60]
-L3_CALL_RATE_PENALTY = 0.05  # 1pp L3-call-rate increase is penalized as 0.05 F1 points.
+# Matches the λ used in threshold_sweep.py (knee objective F1 - λ*escalation_rate):
+# this keeps the "best threshold" heuristic aligned with existing calibration logic.
+L3_CALL_RATE_PENALTY = 0.05
 PRICE_PER_INPUT_TOKEN = 0.40 / 1e6
 PRICE_PER_OUTPUT_TOKEN = 1.60 / 1e6
 
@@ -75,7 +77,7 @@ def _decision_for_threshold(rec: dict, threshold: float) -> tuple[str, float, bo
     return "error", 0.0, False
 
 
-def _score(records: list[dict], threshold: float) -> dict:
+def _score(records: list[dict], threshold: float, uncertain_mode: str) -> dict:
     tp = fp = tn = fn = uncertain = errors = 0
     n_l3 = 0
     total_cost = 0.0
@@ -89,7 +91,9 @@ def _score(records: list[dict], threshold: float) -> dict:
             continue
         if decision == "uncertain":
             uncertain += 1
-            if truth_pos:
+            if uncertain_mode == "error":
+                errors += 1
+            elif truth_pos:
                 fn += 1
             else:
                 tn += 1
@@ -134,16 +138,26 @@ def main() -> None:
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT)
     ap.add_argument("--track", choices=["A", "B", "C"], default="A")
     ap.add_argument("--thresholds", type=float, nargs="+", default=DEFAULT_THRESHOLDS)
+    ap.add_argument(
+        "--uncertain-mode",
+        choices=["truth_aware", "error"],
+        default="truth_aware",
+        help=(
+            "How to count L3='uncertain': truth_aware counts uncertain defects as FN "
+            "and uncertain normals as TN; error counts all uncertain as errors."
+        ),
+    )
     args = ap.parse_args()
 
     records = [r for r in _load(args.trace) if r.get("track") == args.track]
-    rows = [_score(records, t) for t in args.thresholds]
+    rows = [_score(records, t, args.uncertain_mode) for t in args.thresholds]
     best = max(rows, key=_cost_adjusted_f1) if rows else None
 
     payload = {
         "trace_path": str(args.trace),
         "track": args.track,
         "thresholds": args.thresholds,
+        "uncertain_mode": args.uncertain_mode,
         "l3_call_rate_penalty": L3_CALL_RATE_PENALTY,
         "results": rows,
         "best_by_f1_minus_cost": best,
