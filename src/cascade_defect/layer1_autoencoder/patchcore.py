@@ -54,10 +54,16 @@ class PatchCoreCalibration:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Backbone (ResNet18, ImageNet pretrained, frozen)
+# Backbone (ImageNet pretrained, frozen)
 # ─────────────────────────────────────────────────────────────────────────────
 class _FeatureExtractor(torch.nn.Module):
-    """Hooks `layer2` (256-d) + `layer3` (512-d) of ResNet18 → 768-d patches."""
+    """PatchCore feature extractor for `resnet18` or `wrn50` backbones.
+
+    Hooks `layer2` + `layer3`, upsamples `layer3` to `layer2` spatial size,
+    then concatenates channels:
+    - `resnet18`: 256 + 512 = 768-d patch vectors
+    - `wrn50` (`wide_resnet50_2`): 512 + 1024 = 1536-d patch vectors
+    """
 
     def __init__(self, *, backbone: str = "resnet18") -> None:
         super().__init__()
