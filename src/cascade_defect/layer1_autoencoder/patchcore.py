@@ -43,7 +43,7 @@ DEFAULT_IMAGE_SIZE = 224
 DEFAULT_K = 5
 DEFAULT_QUANTILE = 0.99
 DEFAULT_BANK_FRACTION = 0.10  # random coreset substitute
-MAX_BANK_VECTORS = 200_000     # hard cap on memory footprint
+MAX_BANK_VECTORS = 200_000  # hard cap on memory footprint
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,22 +54,37 @@ class PatchCoreCalibration:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Backbone (ResNet18, ImageNet pretrained, frozen)
+# Backbone (ImageNet pretrained, frozen)
 # ─────────────────────────────────────────────────────────────────────────────
 class _FeatureExtractor(torch.nn.Module):
-    """Hooks `layer2` (256-d) + `layer3` (512-d) of ResNet18 → 768-d patches."""
+    """PatchCore feature extractor for `resnet18` or `wrn50` backbones.
 
-    def __init__(self) -> None:
+    Hooks `layer2` + `layer3`, upsamples `layer3` to `layer2` spatial size,
+    then concatenates channels:
+    - `resnet18`: 256 + 512 = 768-d patch vectors
+    - `wrn50` (`wide_resnet50_2`): 512 + 1024 = 1536-d patch vectors
+    """
+
+    def __init__(self, *, backbone: str = "resnet18") -> None:
         super().__init__()
-        weights = models.ResNet18_Weights.IMAGENET1K_V1
-        self.backbone = models.resnet18(weights=weights)
-        self.transform = transforms.Compose([
-            transforms.Resize((DEFAULT_IMAGE_SIZE, DEFAULT_IMAGE_SIZE)),
-            transforms.ToTensor(),
-            transforms.Normalize(
-                mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
-            ),
-        ])
+        backbone_l = backbone.lower()
+        if backbone_l == "resnet18":
+            weights = models.ResNet18_Weights.IMAGENET1K_V1
+            self.backbone = models.resnet18(weights=weights)
+            self.backbone_name = "resnet18-imagenet1k_v1"
+        elif backbone_l in {"wrn50", "wide_resnet50_2"}:
+            weights = models.Wide_ResNet50_2_Weights.IMAGENET1K_V2
+            self.backbone = models.wide_resnet50_2(weights=weights)
+            self.backbone_name = "wide_resnet50_2-imagenet1k_v2"
+        else:
+            raise ValueError(f"Unsupported backbone: {backbone}")
+        self.transform = transforms.Compose(
+            [
+                transforms.Resize((DEFAULT_IMAGE_SIZE, DEFAULT_IMAGE_SIZE)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ]
+        )
         self._features: dict[str, torch.Tensor] = {}
         self.backbone.layer2.register_forward_hook(self._hook("layer2"))
         self.backbone.layer3.register_forward_hook(self._hook("layer3"))
@@ -80,6 +95,7 @@ class _FeatureExtractor(torch.nn.Module):
     def _hook(self, name: str):
         def fn(_module, _inp, out):
             self._features[name] = out
+
         return fn
 
     @torch.no_grad()
@@ -147,9 +163,13 @@ def build_memory_bank(
         raise RuntimeError("No images contributed to memory bank")
     bank = torch.cat(chunks, dim=0)
     if bank.shape[0] > max_vectors:
-        idx = torch.randperm(bank.shape[0], generator=torch.Generator().manual_seed(seed))[:max_vectors]
+        idx = torch.randperm(bank.shape[0], generator=torch.Generator().manual_seed(seed))[
+            :max_vectors
+        ]
         bank = bank.index_select(0, idx)
-    logger.info("Built bank from %d images → %d patches × %d dims", n_images, bank.shape[0], bank.shape[1])
+    logger.info(
+        "Built bank from %d images → %d patches × %d dims", n_images, bank.shape[0], bank.shape[1]
+    )
     return bank.contiguous().float()
 
 
@@ -175,7 +195,7 @@ def score_image(
     vol = extractor.encode_image(img, device).cpu()
     q = _patches_from_volume(vol)  # [P, D]
     # Cosine distance via dot product on L2-normalised vectors.
-    sim = q @ bank.T              # [P, N]
+    sim = q @ bank.T  # [P, N]
     topk = sim.topk(k=min(k, bank.shape[0]), dim=1).values
     per_patch = 1.0 - topk.mean(dim=1)  # cosine distance
     return float(torch.quantile(per_patch, quantile).item())
@@ -215,6 +235,7 @@ def save_bank(
     *,
     bank_by_domain: dict[str, torch.Tensor],
     calibration_by_domain: dict[str, PatchCoreCalibration],
+    backbone: str = "resnet18-imagenet1k_v1",
     image_size: int = DEFAULT_IMAGE_SIZE,
     k: int = DEFAULT_K,
     quantile: float = DEFAULT_QUANTILE,
@@ -226,7 +247,7 @@ def save_bank(
         "image_size": image_size,
         "k": k,
         "quantile": quantile,
-        "backbone": "resnet18-imagenet1k_v1",
+        "backbone": backbone,
         "feature_layers": ["layer2", "layer3"],
         "per_domain": {
             d: {
@@ -242,9 +263,7 @@ def save_bank(
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2))
 
 
-def load_bank(
-    output_dir: Path, domain: str
-) -> tuple[torch.Tensor, PatchCoreCalibration]:
+def load_bank(output_dir: Path, domain: str) -> tuple[torch.Tensor, PatchCoreCalibration]:
     bank = torch.load(output_dir / f"bank_{domain}.pt", map_location="cpu", weights_only=True)
     summary = json.loads((output_dir / "summary.json").read_text())
     block = summary["per_domain"][domain]

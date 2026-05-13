@@ -121,7 +121,22 @@ uv run python scripts/demo_cascade.py `
 uv run python -m cascade_defect.eval.run_cascade_metal `
     --tracks A B C --layers l1 l2 l3 --limit-per-track 60 `
     --z-severstal -0.5 --z-ksdd2 1.0 --use-cache `
+    --l2-conf-threshold 0.50 `
     --out reports/eval_cascade_metal_k1_calibrated.jsonl
+
+# Optional: Track-A-only full-pass (no cap) with cheap L1+L2 first.
+uv run python -m cascade_defect.eval.run_cascade_metal `
+    --tracks A --layers l1 l2 `
+    --z-severstal -0.5 --z-ksdd2 1.0 `
+    --l2-conf-threshold 0.50 `
+    --out reports/eval_cascade_track_a_full_l1_l2.jsonl
+
+# Optional: sweep L2 confidence thresholds on Track A.
+uv run python -m cascade_defect.eval.l2_threshold_sweep `
+    --trace reports/eval_cascade_metal_k1_calibrated.jsonl `
+    --track A `
+    --thresholds 0.35 0.40 0.45 0.50 0.55 0.60 `
+    --out reports/l2_threshold_sweep.json
 
 Copy-Item reports/eval_cascade_metal_k1_calibrated.jsonl `
     reports/eval_cascade_metal.jsonl -Force
