@@ -88,11 +88,19 @@ def _score(records: list[dict], threshold: float, uncertain_mode: str) -> dict:
         truth_pos = _truth_positive(rec)
         if decision == "error":
             errors += 1
+            if truth_pos:
+                fn += 1
+            else:
+                fp += 1
             continue
         if decision == "uncertain":
             uncertain += 1
             if uncertain_mode == "error":
                 errors += 1
+                if truth_pos:
+                    fn += 1
+                else:
+                    fp += 1
             elif truth_pos:
                 fn += 1
             else:
