@@ -175,9 +175,7 @@ class _L2Yolo:
 
     def detect(self, image_path: Path) -> tuple[str | None, float, int]:
         """Return (top_class_name, top_confidence, n_detections)."""
-        results = self._model.predict(
-            source=str(image_path), conf=self._conf, verbose=False
-        )
+        results = self._model.predict(source=str(image_path), conf=self._conf, verbose=False)
         if not results:
             return None, 0.0, 0
         boxes = results[0].boxes
@@ -201,6 +199,7 @@ def _evaluate_one(
     *,
     l1: _L1PatchCore | None,
     l2: _L2Yolo | None,
+    l2_conf_threshold: float,
     l3_enabled: bool,
     seed_dir: Path,
     use_cache: bool = False,
@@ -226,11 +225,16 @@ def _evaluate_one(
             l1_ms = int((time.monotonic() - t1) * 1000)
             tau = l1.threshold_for(case.domain)
             l1_decision = "defect" if z >= tau else "no_defect"
-            record["trace"].append({
-                "layer": 1, "decision": l1_decision,
-                "score_raw": round(raw, 6), "score_z": round(z, 3),
-                "z_threshold": tau, "elapsed_ms": l1_ms,
-            })
+            record["trace"].append(
+                {
+                    "layer": 1,
+                    "decision": l1_decision,
+                    "score_raw": round(raw, 6),
+                    "score_z": round(z, 3),
+                    "z_threshold": tau,
+                    "elapsed_ms": l1_ms,
+                }
+            )
         except Exception as e:  # noqa: BLE001
             record["trace"].append({"layer": 1, "decision": "error", "error": str(e)})
             record["decision"] = "error"
@@ -252,12 +256,17 @@ def _evaluate_one(
         cls_name, conf, n_det = l2.detect(case.image)
         l2_ms = int((time.monotonic() - t2) * 1000)
         l2_ran = True
-        record["trace"].append({
-            "layer": 2, "decision": "defect" if cls_name else "no_defect",
-            "class": cls_name, "confidence": round(conf, 3),
-            "n_detections": n_det, "elapsed_ms": l2_ms,
-        })
-        if cls_name and conf >= 0.50:
+        record["trace"].append(
+            {
+                "layer": 2,
+                "decision": "defect" if cls_name else "no_defect",
+                "class": cls_name,
+                "confidence": round(conf, 3),
+                "n_detections": n_det,
+                "elapsed_ms": l2_ms,
+            }
+        )
+        if cls_name and conf >= l2_conf_threshold:
             # YOLO confident — short-circuit, no Oracle needed
             record["decision"] = "defect"
             record["class"] = cls_name
@@ -281,12 +290,18 @@ def _evaluate_one(
             t3 = time.monotonic()
             pred, usage, cache_info = _predict_fn(case.image, seed_dir, domain="metal")
             l3_ms = int((time.monotonic() - t3) * 1000)
-            record["trace"].append({
-                "layer": 3, "decision": pred.defect_class,
-                "class": pred.defect_class, "confidence": pred.confidence,
-                "reasoning": pred.reasoning, "usage": usage,
-                "cache": cache_info, "elapsed_ms": l3_ms,
-            })
+            record["trace"].append(
+                {
+                    "layer": 3,
+                    "decision": pred.defect_class,
+                    "class": pred.defect_class,
+                    "confidence": pred.confidence,
+                    "reasoning": pred.reasoning,
+                    "usage": usage,
+                    "cache": cache_info,
+                    "elapsed_ms": l3_ms,
+                }
+            )
             if pred.defect_class == "no_defect":
                 record["decision"] = "no_defect"
                 record["class"] = "no_defect"
@@ -317,20 +332,41 @@ def _evaluate_one(
 # ─────────────────────────────────────────────────────────────────────────────
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--tracks", nargs="+", choices=["A", "B", "C"], default=["A", "B", "C"])
     ap.add_argument("--layers", nargs="+", choices=["l1", "l2", "l3"], default=["l1"])
+    ap.add_argument(
+        "--l2-conf-threshold",
+        type=float,
+        default=0.50,
+        help="Confidence needed for L2 to short-circuit without escalating to L3.",
+    )
     ap.add_argument("--patchcore-dir", type=Path, default=DEFAULT_PATCHCORE_DIR)
     ap.add_argument("--yolo-weights", type=Path, default=DEFAULT_YOLO_WEIGHTS)
     ap.add_argument("--z-threshold", type=float, default=float(os.getenv("Z_THRESHOLD", "3.0")))
-    ap.add_argument("--z-severstal", type=float, default=None,
-                    help="Per-domain override for Severstal (Phase K.2 calibrated knee).")
-    ap.add_argument("--z-ksdd2", type=float, default=None,
-                    help="Per-domain override for KSDD2 (Phase K.2 calibrated knee).")
-    ap.add_argument("--use-cache", action="store_true",
-                    help="Wrap L3 in the perceptual-hash cache (Phase K.4).")
-    ap.add_argument("--limit-per-track", type=int, default=0,
-                    help="Cap cases per track (stratified by polarity). 0 = no cap.")
+    ap.add_argument(
+        "--z-severstal",
+        type=float,
+        default=None,
+        help="Per-domain override for Severstal (Phase K.2 calibrated knee).",
+    )
+    ap.add_argument(
+        "--z-ksdd2",
+        type=float,
+        default=None,
+        help="Per-domain override for KSDD2 (Phase K.2 calibrated knee).",
+    )
+    ap.add_argument(
+        "--use-cache", action="store_true", help="Wrap L3 in the perceptual-hash cache (Phase K.4)."
+    )
+    ap.add_argument(
+        "--limit-per-track",
+        type=int,
+        default=0,
+        help="Cap cases per track (stratified by polarity). 0 = no cap.",
+    )
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT)
     args = ap.parse_args()
@@ -366,9 +402,11 @@ def main() -> None:
     if args.z_ksdd2 is not None:
         z_per_domain["ksdd2"] = args.z_ksdd2
     l1 = (
-        _L1PatchCore(args.patchcore_dir, z_threshold=args.z_threshold,
-                     z_per_domain=z_per_domain or None)
-        if "l1" in layers else None
+        _L1PatchCore(
+            args.patchcore_dir, z_threshold=args.z_threshold, z_per_domain=z_per_domain or None
+        )
+        if "l1" in layers
+        else None
     )
     l2 = None
     if "l2" in layers:
@@ -385,17 +423,28 @@ def main() -> None:
     with args.out.open("w", encoding="utf-8") as fh:
         for case in all_cases:
             rec = _evaluate_one(
-                case, l1=l1, l2=l2, l3_enabled=l3_enabled,
-                seed_dir=seed_dir, use_cache=use_cache,
+                case,
+                l1=l1,
+                l2=l2,
+                l3_enabled=l3_enabled,
+                l2_conf_threshold=args.l2_conf_threshold,
+                seed_dir=seed_dir,
+                use_cache=use_cache,
             )
             fh.write(json.dumps(rec) + "\n")
             fh.flush()
             n_done += 1
             logger.info(
                 "[%d/%d] track=%s domain=%s true=%s -> L%s %s/%s (%dms)",
-                n_done, len(all_cases), case.track, case.domain, case.polarity,
-                rec.get("stopped_at_layer", "?"), rec.get("decision", "?"),
-                rec.get("class", "-"), rec.get("client_elapsed_ms", -1),
+                n_done,
+                len(all_cases),
+                case.track,
+                case.domain,
+                case.polarity,
+                rec.get("stopped_at_layer", "?"),
+                rec.get("decision", "?"),
+                rec.get("class", "-"),
+                rec.get("client_elapsed_ms", -1),
             )
 
     logger.info("Wrote %s", args.out)

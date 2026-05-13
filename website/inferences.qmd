@@ -2,7 +2,7 @@
 title: "Inference walkthroughs"
 subtitle: "What the cascade actually sees, layer by layer"
 date: today
-jupyter: cascade-defect
+jupyter: python3
 execute:
   echo: false
   warning: false
