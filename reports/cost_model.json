@@ -1,0 +1,41 @@
+{
+  "assumptions": {
+    "aoai_price_in_per_M": 0.15,
+    "aoai_price_out_per_M": 0.6,
+    "tokens_in_per_call": 500,
+    "tokens_out_per_call": 100,
+    "aca_vcpu": 1.0,
+    "aca_ram_gib": 2.0,
+    "aca_price_vcpu_sec": 2.4e-05,
+    "aca_price_ram_sec_gib": 2.5e-06,
+    "qwen_or_price_in_per_M": 0.13,
+    "qwen_or_price_out_per_M": 0.52,
+    "cpu_box_capex_usd": 1500.0,
+    "cpu_box_amortise_months": 36,
+    "cpu_box_power_w": 50.0,
+    "electricity_usd_per_kwh": 0.18,
+    "l40s_box_capex_usd": 12000.0,
+    "l40s_box_amortise_months": 36,
+    "l40s_box_power_w": 350.0,
+    "l40s_maintenance_pct_per_year": 0.1,
+    "qwen_l40s_throughput_imgs_per_sec": 5.0,
+    "resnet50_cpu_throughput_imgs_per_sec": 20.0,
+    "hybrid_escalation_rate": 0.1,
+    "volume_min": 10000,
+    "volume_max": 10000000
+  },
+  "per_image_cost_usd": {
+    "aoai_gpt41mini": 0.000135,
+    "qwen3_vl_openrouter": 0.000117
+  },
+  "monthly_fixed_cost_usd": {
+    "aca_replica": 75.17,
+    "cpu_box_amortised": 48.15,
+    "l40s_box_amortised": 478.69
+  },
+  "crossover_volumes_per_month": {
+    "azure_to_hybrid": 396269,
+    "hybrid_to_onprem": null
+  },
+  "onprem_l40s_monthly_capacity_imgs": 12960000
+}

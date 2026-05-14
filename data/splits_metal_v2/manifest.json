@@ -1,0 +1,51 @@
+{
+  "created_utc": "2026-05-14T15:08:17.711012+00:00",
+  "seed": 42,
+  "source_manifest": "data/splits_metal/manifest.json",
+  "source_csv": "data/raw/severstal-steel-defect-detection/train.csv",
+  "label_strategy": "Severstal class IDs 1-4 \u2192 {pitting, inclusion, scratch, patch}; for multi-class images keep the class with the largest total RLE area.",
+  "classes": [
+    "no_defect",
+    "pitting",
+    "inclusion",
+    "scratch",
+    "patch"
+  ],
+  "counts": {
+    "train": {
+      "inclusion": 152,
+      "scratch": 3531,
+      "pitting": 584,
+      "patch": 531,
+      "no_defect": 4250
+    },
+    "val": {
+      "no_defect": 472,
+      "scratch": 392,
+      "patch": 59,
+      "pitting": 64,
+      "inclusion": 20
+    },
+    "test": {
+      "scratch": 971,
+      "no_defect": 1180,
+      "pitting": 181,
+      "inclusion": 53,
+      "patch": 128
+    },
+    "vlm_benchmark": {
+      "no_defect": 120,
+      "patch": 30,
+      "pitting": 30,
+      "inclusion": 30,
+      "scratch": 30
+    }
+  },
+  "vlm_benchmark_target": {
+    "no_defect": 120,
+    "pitting": 30,
+    "inclusion": 30,
+    "scratch": 30,
+    "patch": 30
+  }
+}

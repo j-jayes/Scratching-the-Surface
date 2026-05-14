@@ -1,0 +1,40 @@
+---
+title: "Scratching the Surface"
+
+subtitle: "Lunch and Learn"
+date: today
+author: 
+  - "Jonathan Jayes"
+title-slide-attributes:
+  data-background-image: "assets/preview_wide.png"
+  data-background-position: "bottom 10"
+  data-background-size: "90%"
+  data-background-opacity: "0.4"
+format: 
+  revealjs:
+    # theme: [default, clean.scss]
+    code-overflow: wrap
+    width: 1600
+    height: 900
+    fig-align: center
+    default-image-extension: svg
+    slide-number: c
+    code-block-bg: true
+    code-block-border-left: "#31BAE9"
+---
+
+
+# Use Case{visibility="uncounted" #sec-appendix-p1 background-color="#1b9e77"}
+
+## AQ Group
+
+text
+
+
+# Paper II Appendix{visibility="uncounted" #sec-appendix-p2 background-color="#d95f02"}
+
+# Paper III Appendix {visibility="uncounted" #sec-appendix-p3 background-color="#7570b3"}
+
+# Paper IV Appendix {visibility="uncounted" #sec-appendix-p4 background-color="#e7298a"}
+
+
