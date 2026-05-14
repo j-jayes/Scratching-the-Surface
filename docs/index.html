@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="j-jayes">
-<meta name="dcterms.date" content="2026-04-30">
+<meta name="dcterms.date" content="2026-05-13">
 
 <title>Project Cascade Defect</title>
 <style>
@@ -40,14 +40,14 @@ ul.task-list li input[type="checkbox"] {
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-065a5179aebd64318d7ea99d77b64a9e.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-969ddfa49e00a70eb3423444dbc81f6c.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-065a5179aebd64318d7ea99d77b64a9e.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-3bddaeb0fd925e8bb5dfbae52d3f0a98.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-4c274900dd65a18f0cad5cf4f1f0e3f2.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-3bddaeb0fd925e8bb5dfbae52d3f0a98.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-6c17f5b0fb68843ed4719f05c4fa2958.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="site_libs/bootstrap/bootstrap-dark-3acd9f2b5eccf98692d400b1b7990e0b.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="site_libs/bootstrap/bootstrap-6c17f5b0fb68843ed4719f05c4fa2958.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-48537e684b2c0a75c0e249703685ed72.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-479d7639e9d97eff01268280c2a50d1b.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-48537e684b2c0a75c0e249703685ed72.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -289,6 +289,10 @@ ul.task-list li input[type="checkbox"] {
     <a class="nav-link" href="./evaluation.html"> 
 <span class="menu-text">Evaluation</span></a>
   </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./slides.html"> 
+<span class="menu-text">Slides</span></a>
+  </li>  
 </ul>
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
   <li class="nav-item compact">
@@ -316,6 +320,7 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#overview" id="toc-overview" class="nav-link active" data-scroll-target="#overview">Overview</a></li>
   <li><a href="#the-data-pivot" id="toc-the-data-pivot" class="nav-link" data-scroll-target="#the-data-pivot">The data pivot</a></li>
   <li><a href="#why-a-cascade" id="toc-why-a-cascade" class="nav-link" data-scroll-target="#why-a-cascade">Why a cascade?</a></li>
+  <li><a href="#try-it-live" id="toc-try-it-live" class="nav-link" data-scroll-target="#try-it-live">Try it live</a></li>
   <li><a href="#quick-links" id="toc-quick-links" class="nav-link" data-scroll-target="#quick-links">Quick links</a></li>
   </ul>
 </nav>
@@ -344,7 +349,7 @@ ul.task-list li input[type="checkbox"] {
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">April 30, 2026</p>
+      <p class="date">May 13, 2026</p>
     </div>
   </div>
   
@@ -481,6 +486,11 @@ Figure&nbsp;1: High-level cascade pipeline
 </tbody>
 </table>
 <p>The cascade is the only architecture that buys you the MLLM’s accuracy without its bill — and the only one whose economics improve as more of the camera feed turns out to be defect-free.</p>
+</section>
+<section id="try-it-live" class="level2">
+<h2 class="anchored" data-anchor-id="try-it-live">Try it live</h2>
+<p>A public demo of the cascade router is deployed on Azure Container Apps with <strong>scale-to-zero</strong> — the layers spin up on the first request (≈30–60 s cold start) and shut down again after a few minutes of idle. Three example images are pre-loaded covering each cascade outcome (cheap-stop at L1, specialist-stop at L2, oracle escalation at L3).</p>
+<p>The router URL is printed by <code>make demo-deploy</code> and exposed via <code>make apps-show</code>. The demo is rate-limited (10 req/min/IP, 200/day) and guarded by a $5/day Azure OpenAI cap.</p>
 </section>
 <section id="quick-links" class="level2">
 <h2 class="anchored" data-anchor-id="quick-links">Quick links</h2>

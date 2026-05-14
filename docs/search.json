@@ -278,5 +278,19 @@
     "title": "Project Cascade Defect",
     "section": "Quick links",
     "text": "Quick links\n\nArchitecture → — system design and Azure topology\nData Strategy → — KSDD2 + Severstal combination plan\nEvaluation → — measured cost / latency / accuracy\nInferences → — frame-by-frame walkthroughs"
+  },
+  {
+    "objectID": "slides.html#test-slide",
+    "href": "slides.html#test-slide",
+    "title": "Scratching the Surface",
+    "section": "Test slide",
+    "text": "Test slide\ntext"
+  },
+  {
+    "objectID": "index.html#try-it-live",
+    "href": "index.html#try-it-live",
+    "title": "Project Cascade Defect",
+    "section": "Try it live",
+    "text": "Try it live\nA public demo of the cascade router is deployed on Azure Container Apps with scale-to-zero — the layers spin up on the first request (≈30–60 s cold start) and shut down again after a few minutes of idle. Three example images are pre-loaded covering each cascade outcome (cheap-stop at L1, specialist-stop at L2, oracle escalation at L3).\nThe router URL is printed by make demo-deploy and exposed via make apps-show. The demo is rate-limited (10 req/min/IP, 200/day) and guarded by a $5/day Azure OpenAI cap."
   }
 ]

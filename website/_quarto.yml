@@ -25,6 +25,8 @@ website:
         text: Inferences
       - href: evaluation.qmd
         text: Evaluation
+      - href: slides.qmd
+        text: Slides
     right:
       - icon: github
         href: https://github.com/j-jayes/Scratching-the-Surface
