@@ -295,3 +295,165 @@ Pricing snapshot: Azure West Europe May 2026, OpenRouter list, Newegg L40S works
 - Qwen3.6-35B-A3B: too verbose (1641 output tokens on a normal image).
 - Qwen3.5-Plus: too slow (44s).
 - **Qwen3-VL-30B-A3B-Instruct: 2.7s, $0.00012/call → champion.**
+
+# VLM Prompt Engineering {visibility="uncounted" background-color="#4e79a7"}
+
+## Experimental setup {visibility="uncounted"}
+
+**Goal:** improve VLM defect classification from v2 baseline without fine-tuning.
+
+:::: {.columns}
+::: {.column width="50%"}
+**Models tested**
+
+- Qwen3-VL-30B (OpenRouter) — $0.45/1k images
+- GPT-4.1-mini (Azure) — $0.70/1k images
+
+**Dev benchmark**
+
+- 50 images, 10 per class, seed=42
+- Classes: `no_defect`, `pitting`, `inclusion`, `scratch`, `patch`
+- Severstal 256×1600 grayscale steel strips
+:::
+::: {.column width="50%"}
+**Variants run (Qwen unless noted)**
+
+| Variant | Core idea |
+|---|---|
+| v2 | 3-shot + canned CoT |
+| v3a | V3 prompt, zero-shot |
+| v3b | 1-shot + old v2 reasoning |
+| v3c | 1-shot + V3 prompt, no CoT |
+| v3d | v3c + chain-of-thought |
+| v3f | v3c + auto-crop black padding |
+| **v3c (Azure)** | **same prompt, stronger model** |
+:::
+::::
+
+::: {.notes}
+Temperature=0 throughout — prevents hallucination drift but amplifies any template-parroting tendency.
+One shot = 1 reference image per class (5 total), query = 1 image → 6 images total per call.
+:::
+
+## Why v2 failed: canned reasoning collapse {visibility="uncounted"}
+
+:::: {.columns}
+::: {.column width="55%"}
+**Root cause 1 — CoT template parroting**
+
+v2 used a multi-turn prompt where the assistant pre-filled reasoning like:
+
+> *"Step 1: Check for long thin lines running in the rolling direction…"*
+
+At temperature=0, the model learned to copy this template verbatim for every image and nearly always output `scratch`.
+
+**Symptom:** Qwen v2 accuracy=0.49 but macro-F1=0.132 — 99% of predictions were `no_defect` or `scratch`.
+
+**Fix (v3a):** Remove CoT scaffolding entirely. Just label.
+:::
+::: {.column width="45%"}
+**Root cause 2 — rolling texture false positives**
+
+Normal mill texture has fine parallel lines in the rolling direction. Without explicit guidance, VLMs flag these as scratches.
+
+**Fix (v3 system prompt):** Added explicit rule:
+
+> *"A scratch must show a HIGH-CONTRAST groove or gouge — not normal mill texture or low-contrast rolling lines."*
+
+**Effect:** scratch precision rose, patch and inclusion unlocked.
+:::
+::::
+
+## Why inclusion was hard: the padding problem {visibility="uncounted"}
+
+:::: {.columns}
+::: {.column width="55%"}
+**Root cause 3 — black zero-padding**
+
+9 of 10 dev-set inclusion images have **>80% black zero-padding**. The visible steel strip is a narrow edge slice.
+
+The sharp steel-to-black boundary creates a bright vertical line that VLMs consistently read as a scratch.
+
+**Example:** `a44dd8116.jpg` — 1600×256 input, 227×256 after crop (86% black removed).
+
+**Fix (v3f):** `_crop_black()` — auto-detect and remove zero-padded columns before encoding.
+
+**Partial result:** pitting +0.17, patch now 1.00 — but inclusion remains 0.00 on Qwen. The visible steel after crop is too narrow to reveal the defect.
+:::
+::: {.column width="45%"}
+**What Azure does differently**
+
+GPT-4.1-mini correctly identified inclusion in **5/10** images with reasoning like:
+
+> *"Irregular dark blobs and streaks embedded in the steel surface with jagged edges, consistent with inclusions."*
+
+Azure's stronger vision backbone resolves the narrow-strip inclusion signal that Qwen misses.
+:::
+::::
+
+::: {.notes}
+This is the key qualitative finding: VLMs "explain their mistakes" in ways CNNs cannot. Even when wrong, the reasoning is inspectable.
+:::
+
+## Ablation results — Qwen (OpenRouter) {visibility="uncounted" .smaller}
+
+| Variant | Key change | acc | macro-F1 | inclusion | no_defect | patch | pitting | scratch |
+|---|---|---|---|---|---|---|---|---|
+| v2 baseline | 3-shot + canned CoT | 0.49* | 0.130 | 0.00 | 0.26 | 0.00 | 0.00 | 0.10 |
+| v3a | HIGH-CONTRAST rule, zero-shot | 0.20 | 0.132 | **0.24** | 0.11 | 0.00 | 0.00 | 0.31 |
+| v3b | 1-shot + old v2 reasoning | 0.14 | 0.076 | 0.00 | 0.15 | 0.00 | 0.00 | 0.23 |
+| **v3c** | **1-shot + V3 prompt, no CoT** | **0.34** | **0.286** | 0.00 | 0.18 | **0.72** | 0.00 | **0.53** |
+| v3d | v3c + chain-of-thought | 0.24 | 0.136 | 0.00 | 0.33 | 0.00 | 0.00 | 0.35 |
+| v3f | v3c + auto-crop black padding | 0.36 | 0.294 | 0.00 | 0.15 | 0.71 | **0.17** | 0.43 |
+
+*v2 accuracy misleading — 99% predictions were `no_defect`.
+
+::: {.callout-note}
+v3c is the best single Qwen variant. v3d shows CoT at temperature=0 re-introduces collapse. v3f adds marginal pitting gain (+0.17) at cost of scratch recall.
+:::
+
+## Ablation results — Azure GPT-4.1-mini v3c {visibility="uncounted" .smaller}
+
+:::: {.columns}
+::: {.column width="50%"}
+**Final scores: acc=0.440, macro-F1=0.402**
+
+| Class | Precision | Recall | F1 |
+|---|---|---|---|
+| inclusion | 0.42 | 0.50 | **0.45** |
+| no_defect | 0.17 | 0.10 | 0.12 |
+| patch | 0.42 | 1.00 | 0.59 |
+| pitting | 0.67 | 0.20 | 0.31 |
+| scratch | 0.80 | 0.40 | 0.53 |
+:::
+::: {.column width="50%"}
+**vs Qwen v3c (same prompt)**
+
+| Metric | Qwen v3c | Azure v3c | Δ |
+|---|---|---|---|
+| acc | 0.34 | 0.44 | +0.10 |
+| macro-F1 | 0.286 | **0.402** | **+0.116** |
+| inclusion F1 | 0.00 | **0.45** | **+0.45** |
+| no_defect F1 | 0.18 | 0.12 | −0.06 |
+| patch F1 | 0.72 | 0.59 | −0.13 |
+| pitting F1 | 0.00 | 0.31 | +0.31 |
+| scratch F1 | 0.53 | 0.53 | ±0.00 |
+
+**Key gap:** no_defect F1=0.12 — Azure over-predicts defects (high recall, low precision). ResNet50 still dominates at macro-F1=0.598.
+:::
+::::
+
+## VLM experiment takeaways {visibility="uncounted"}
+
+::: {.incremental}
+1. **Prompt engineering alone** moved Qwen macro-F1 from 0.130 → 0.294 (+126%) — no fine-tuning, no new data.
+2. **Model quality matters more than prompt** for hard classes: Azure resolved inclusion (F1 0→0.45) that Qwen couldn't, on the *same prompt*.
+3. **CoT at temperature=0 is harmful** — it provides a template the model parrots, collapsing predictions to whichever class the template primes.
+4. **Image artefacts are a real failure mode** — 80% black padding confused VLMs into seeing phantom scratches. Pre-processing (`_crop_black`) helps but doesn't fully recover.
+5. **VLMs explain their failures; CNNs don't.** Even when wrong, VLM reasoning is inspectable — valuable for debugging and human review workflows.
+:::
+
+::: {.notes}
+The "explains failures" point is the most defensible argument for VLMs in production despite lower raw accuracy.
+A hybrid that uses ResNet50 for high-confidence cases and escalates to Azure VLM for ambiguous cases could combine both strengths.
+:::

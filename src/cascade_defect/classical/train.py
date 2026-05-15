@@ -81,6 +81,10 @@ def main() -> None:
     p.add_argument("--history", default="reports/resnet50_train_history.json")
     p.add_argument("--device", default=None,
                    help="Override device (cpu/mps/cuda).")
+    p.add_argument("--resume", default=None,
+                   help="Path to a saved state_dict to resume from.")
+    p.add_argument("--time-limit-hours", type=float, default=None,
+                   help="Stop training after this many hours (wall-clock).")
     args = p.parse_args()
 
     device = torch.device(args.device) if args.device else pick_device()
@@ -101,6 +105,11 @@ def main() -> None:
     print(f"Class weights: {dict(zip(CLASSES, weights.tolist()))}")
 
     model = build_model(pretrained=True).to(device)
+    if args.resume:
+        resume_path = ROOT / args.resume
+        state = torch.load(resume_path, map_location=device)
+        model.load_state_dict(state)
+        print(f"Resumed weights from {resume_path}")
     optim = AdamW(model.parameters(), lr=args.lr,
                   weight_decay=args.weight_decay)
     sched = CosineAnnealingLR(optim, T_max=args.epochs)
@@ -109,7 +118,26 @@ def main() -> None:
     history: list[dict] = []
     best_val_acc = -1.0
     best_state: dict | None = None
+
+    # Load existing history if resuming so we can append to it
+    if args.resume and history_path.exists():
+        prev = json.loads(history_path.read_text())
+        history = prev.get("epochs", [])
+        best_val_acc = prev.get("best_val_acc", -1.0)
+        print(f"Loaded {len(history)} prior epochs; best_val_acc so far = {best_val_acc:.4f}")
+
+    time_limit_secs = args.time_limit_hours * 3600 if args.time_limit_hours else None
+    wall_start = time.time()
+    epoch_offset = len(history)  # so epoch numbers continue from prior run
+
     for epoch in range(1, args.epochs + 1):
+        # Check wall-clock time limit before starting each epoch
+        if time_limit_secs is not None:
+            elapsed = time.time() - wall_start
+            if elapsed >= time_limit_secs:
+                print(f"Time limit of {args.time_limit_hours:.1f}h reached "
+                      f"after {elapsed/3600:.2f}h. Stopping.")
+                break
         model.train()
         t0 = time.time()
         running = 0.0
@@ -130,7 +158,7 @@ def main() -> None:
         val = evaluate(model, val_loader, device, criterion)
         dt = time.time() - t0
         rec = {
-            "epoch": epoch,
+            "epoch": epoch_offset + epoch,
             "train_loss": train_loss,
             "val_loss": val["loss"],
             "val_acc": val["acc"],
@@ -139,10 +167,11 @@ def main() -> None:
             "secs": dt,
         }
         history.append(rec)
-        print(f"[{epoch:02d}/{args.epochs}] "
+        elapsed_h = (time.time() - wall_start) / 3600
+        print(f"[{epoch_offset + epoch:03d}] "
               f"train_loss={train_loss:.4f} "
               f"val_loss={val['loss']:.4f} val_acc={val['acc']:.4f} "
-              f"({dt:.1f}s)")
+              f"({dt:.1f}s, wall {elapsed_h:.2f}h)")
 
         if val["acc"] > best_val_acc:
             best_val_acc = val["acc"]
