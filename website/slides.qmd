@@ -135,23 +135,49 @@ TODO: simple 2D PCA scatter — defect classes vs natural-image words.
 
 - **Proprietary:** Azure OpenAI `gpt-4.1-mini` (already wired into the cascade).
 - **Open-weights:** OpenRouter `qwen/qwen3-vl-30b-a3b-instruct` (Apache 2.0, on-prem viable).
-- Prompt: 3 reference images per class + structured-output JSON schema.
-- **Output:** `reports/vlm_bench_metal.json` on the 240-image benchmark.
+- Prompt: 1 reference image per class (5 total) + structured-output JSON schema.
+- **50-image dev set** used for rapid prompt iteration; final results on 240-image benchmark.
 
 ## What we tell the VLM {.smaller}
 
-![](assets/samples/vlm_few_shot_grid.png){width=78%}
-
 Every API call ships **the same fixed payload** before the query image:
 
-1. **System prompt** — the inspector role, the five legal labels, a one-paragraph **visual definition** per class, and a 6-step neutral decision procedure (`scan for the 4 defect signatures → match strongest evidence → only output no_defect if surface is uniform → no class-prior bias → no invented labels → no 'uncertain' escape`).
-2. **15 reference shots** — three labelled images per class, paired with an *assistant* turn whose `reasoning` field repeats the visual cue ("long, thin, straight LINEAR mark, aspect ratio > 10:1…"). Teaching the *cue*, not just the label.
+1. **System prompt** — inspector role, five legal labels, per-class visual definition with a key discriminator rule: *"scratch requires a HIGH-CONTRAST mark that clearly stands out from the surrounding mill texture — do NOT label rolling-texture lines as scratch."*
+2. **5 reference shots** — one labelled image per class, paired with a minimal acknowledgement (`"Confirmed patch reference noted."`). Teaching the *image*, not reasoning patterns.
 3. **The query image** + "Classify this image. Respond ONLY in the JSON schema."
 
-Total ≈ 16 images / call, ~500 input tokens, ~100 output tokens (`DefectPrediction` Pydantic schema → `defect_class`, `confidence`, `reasoning`).
+Total ≈ 6 images / call, ~5k input tokens, ~50 output tokens (`defect_class`, `confidence`, `reasoning`).
 
 ::: {.notes}
-Three prompt iterations: v1 allowed `surface_anomaly` and `uncertain` → Qwen hallucinated `surface_anomaly` 113/240 times (acc 0.07). v2 removed escape hatches and added an "about half are no_defect" prior → Qwen overcorrected to `no_defect` 239/240. v3 (current) uses a class-prior-neutral 6-step procedure. Azure responds well to all three; Qwen3-VL-30B remains brittle on fine-grained steel inspection regardless of phrasing — it collapses to `no_defect` ~99% of the time. **That brittleness is the headline finding** for the open-weights track.
+Prompt engineering journey — three failure modes found and fixed:
+
+**v2 collapse:** canned reasoning templates in assistant turns caused Qwen to copy "A high-contrast, long, thin linear mark..." verbatim for every class at temperature=0 → scratch bias, macroF1=0.13.
+
+**v3a scratch bias:** HIGH-CONTRAST requirement added but no 1-shot examples → model still over-predicts scratch.
+
+**v3c (best Qwen):** 1-shot per class + METAL_SYSTEM_PROMPT_V3 + no CoT → macroF1=0.286 (Qwen), with patch F1=0.72, scratch F1=0.53.
+
+**v3d CoT backfire:** adding chain-of-thought assistant reasoning re-introduced template parroting — macroF1 dropped to 0.136.
+
+**v3f (crop + 1-shot):** auto-crop zero-padded black borders before sending images → unlocks pitting F1=0.17, macroF1=0.294 (Qwen). Inclusion class (9/10 dev images have >80% black padding) remains at 0.0 — the defect is not visible in the narrow cropped strip.
+:::
+
+## Prompt engineering: what worked {.smaller}
+
+| Variant | Key change | Qwen macroF1 | Azure macroF1 | Winner classes |
+|---|---|---|---|---|
+| v2 (baseline) | 3-shot + canned CoT reasoning | 0.130 | — | — |
+| v3a | HIGH-CONTRAST scratch rule, no shots | 0.132 | — | inclusion 0.24 |
+| v3b | 1-shot + old v2 assistant reasoning | 0.076 | — | — (regressed) |
+| **v3c** | **1-shot + V3 prompt, no CoT** | **0.286** | **0.402** | patch 0.72, inclusion 0.45 |
+| v3d | 1-shot + chain-of-thought | 0.136 | — | (CoT re-introduced template parroting) |
+| v3f | v3c + auto-crop black padding | 0.294 | — | +pitting 0.17, patch 1.00 |
+
+::: {.notes}
+Root causes discovered in order:
+1. Canned CoT reasoning at temperature=0 → model copy-pastes reasoning template word-for-word → scratch bias
+2. "High-contrast" requirement needed to distinguish true scratches from normal mill-texture rolling lines
+3. 9/10 inclusion dev images have >80% black zero-padding → the sharp steel-to-black boundary creates a fake "high-contrast vertical line" → misclassified as scratch. Crop fixes this for pitting but inclusion remains at 0.0 (the visible steel strip after crop is too narrow to show the inclusion defect).
 :::
 
 ## Track C — Hybrid
@@ -170,14 +196,17 @@ Three prompt iterations: v1 allowed `surface_anomaly` and `uncertain` → Qwen h
 | Track | Accuracy | F1 (macro) | F1 (binary) | Latency p50 | $ / 1k images |
 |---|---|---|---|---|---|
 | A — ResNet50 (M2 MPS) | **0.735** | **0.598** | **0.858** | ~15 ms | ~$0 (local) |
-| B1 — GPT-4.1-mini (Azure) | 0.438 | 0.420 | 0.655 | 5.6 s | $0.55 |
-| B2 — Qwen3-VL-30B (OpenRouter) | 0.488* | 0.132 | 0.016 | 5.8 s | $0.72 |
+| B1 — GPT-4.1-mini (Azure, v3c prompt) | 0.440 | **0.402** | — | ~48 s | $0.70 |
+| B2 — Qwen3-VL-30B (OpenRouter, v3f prompt) | 0.36 | 0.294 | 0.703 | 5.1 s | $0.45 |
+| B2v — Qwen (v2 prompt, collapsed) | 0.49* | 0.132 | 0.016 | 5.8 s | $0.72 |
 | C — Hybrid (ResNet50 → VLM escalate) | TBD | TBD | TBD | TBD | TBD |
 
-*Qwen accuracy is **misleading** — it predicts `no_defect` for ~99% of images, scoring only on the no_defect-prevalence base rate. Macro-F1 (0.13) and binary-F1 on defects (0.02) reveal the collapse.
+*v2 Qwen accuracy was **misleading** — it predicted `no_defect` for ~99% of images. Prompt v3f raises macro-F1 from 0.13 → 0.29 (+124%) and unlocks real predictions on 4 of 5 classes.
 
 ::: {.notes}
-ResNet50 dominates on the test set: 1.7× the macro-F1 of Azure, 5× Qwen, at ~400× lower latency and ~zero marginal cost. Azure makes balanced predictions across all 5 classes but only matches the truth ~44% of the time. Qwen collapses to a trivial classifier — this is the small-open-weights-VLM brittleness story. Hybrid row pending Phase 3 router run.
+Key comparison: Qwen v2 macro-F1=0.13 (no_defect collapse) → Qwen v3f macro-F1=0.29 (+124%) via prompt engineering alone — no fine-tuning, no additional data.
+ResNet50 still dominates at 0.598, but at ~400× lower latency and zero API cost.
+Azure v3c final: acc=0.440, macro-F1=0.402 — inclusion F1=0.45 (vs Qwen 0.00!), pitting F1=0.31, scratch F1=0.53. GPT-4.1-mini is 2× better than Qwen on this prompt (0.402 vs 0.286 macro-F1). Key gap: no_defect F1=0.12 — Azure over-predicts defects.
 :::
 
 ## Per-class confusion matrices

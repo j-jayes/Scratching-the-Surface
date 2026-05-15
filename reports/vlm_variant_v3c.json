@@ -1,0 +1,141 @@
+{
+  "providers": [
+    {
+      "provider": "azure_openai",
+      "model": "oracle",
+      "n_total": 50,
+      "n_scored": 50,
+      "api_failures": 0,
+      "json_parse_failures": 0,
+      "accuracy": 0.44,
+      "macro_f1_5class": 0.4017,
+      "binary_defect_vs_normal": {
+        "precision": 0.7955,
+        "recall": 0.875,
+        "f1": 0.8333,
+        "tp": 35,
+        "fp": 9,
+        "fn": 5,
+        "tn": 1
+      },
+      "per_class": {
+        "inclusion": {
+          "precision": 0.4167,
+          "recall": 0.5,
+          "f1": 0.4545,
+          "support": 10
+        },
+        "no_defect": {
+          "precision": 0.1667,
+          "recall": 0.1,
+          "f1": 0.125,
+          "support": 10
+        },
+        "patch": {
+          "precision": 0.4167,
+          "recall": 1.0,
+          "f1": 0.5882,
+          "support": 10
+        },
+        "pitting": {
+          "precision": 0.6667,
+          "recall": 0.2,
+          "f1": 0.3077,
+          "support": 10
+        },
+        "scratch": {
+          "precision": 0.8,
+          "recall": 0.4,
+          "f1": 0.5333,
+          "support": 10
+        }
+      },
+      "unknown_predictions": {},
+      "latency_s": {
+        "n": 50,
+        "mean": 46.011,
+        "p50": 48.009,
+        "p95": 49.077
+      },
+      "cost_usd": {
+        "total": 0.0381,
+        "mean_per_image": 0.000762,
+        "per_1k": 0.7624
+      },
+      "tokens": {
+        "in_mean": 4910.0,
+        "out_mean": 43.4
+      }
+    },
+    {
+      "provider": "openrouter",
+      "model": "qwen/qwen3-vl-30b-a3b-instruct",
+      "n_total": 50,
+      "n_scored": 50,
+      "api_failures": 0,
+      "json_parse_failures": 0,
+      "accuracy": 0.34,
+      "macro_f1_5class": 0.2856,
+      "binary_defect_vs_normal": {
+        "precision": 0.7407,
+        "recall": 0.5,
+        "f1": 0.597,
+        "tp": 20,
+        "fp": 7,
+        "fn": 20,
+        "tn": 3
+      },
+      "per_class": {
+        "inclusion": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 10
+        },
+        "no_defect": {
+          "precision": 0.1304,
+          "recall": 0.3,
+          "f1": 0.1818,
+          "support": 10
+        },
+        "patch": {
+          "precision": 0.6,
+          "recall": 0.9,
+          "f1": 0.72,
+          "support": 10
+        },
+        "pitting": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 10
+        },
+        "scratch": {
+          "precision": 0.5556,
+          "recall": 0.5,
+          "f1": 0.5263,
+          "support": 10
+        }
+      },
+      "unknown_predictions": {},
+      "latency_s": {
+        "n": 50,
+        "mean": 6.031,
+        "p50": 5.197,
+        "p95": 18.427
+      },
+      "cost_usd": {
+        "total": 0.024,
+        "mean_per_image": 0.00048,
+        "per_1k": 0.48
+      },
+      "tokens": {
+        "in_mean": 3281.0,
+        "out_mean": 102.8
+      }
+    }
+  ],
+  "bench_csv": "data/splits_metal_v2/vlm_dev.csv",
+  "seed_dir": "data/splits_metal_v2/seed",
+  "n_bench_images": 50
+}

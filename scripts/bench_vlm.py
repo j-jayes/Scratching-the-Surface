@@ -35,6 +35,8 @@ BENCH_CSV_DEFAULT = ROOT / "data/splits_metal_v2/vlm_benchmark.csv"
 TRACES_DEFAULT = ROOT / "reports/vlm_bench_metal_traces.jsonl"
 REPORT_DEFAULT = ROOT / "reports/vlm_bench_metal.json"
 
+DEV_CSV_DEFAULT = ROOT / "data/splits_metal_v2/vlm_dev.csv"
+
 # Map raw model output → 5-class taxonomy used by the v2 split.
 # NEU class names sometimes leak in if the model hallucinates from training
 # data (e.g. "scratches"/"patches"); we collapse them to the metal canonical.
@@ -77,8 +79,8 @@ def _build_clients(names: list[str]) -> list:
 
 
 # ── Trace I/O ───────────────────────────────────────────────────────────────
-def load_existing(path: Path) -> set[tuple[str, str, str]]:
-    seen: set[tuple[str, str, str]] = set()
+def load_existing(path: Path) -> set[tuple]:
+    seen: set[tuple] = set()
     if not path.exists():
         return seen
     with path.open() as fh:
@@ -86,7 +88,10 @@ def load_existing(path: Path) -> set[tuple[str, str, str]]:
             if not line.strip():
                 continue
             r = json.loads(line)
-            seen.add((r["image_path"], r["provider"], r["model"]))
+            # Include variant in the deduplication key so variant runs stored
+            # in the same file don't collide with each other or the baseline.
+            seen.add((r["image_path"], r["provider"], r["model"],
+                      r.get("variant", "")))
     return seen
 
 
@@ -242,6 +247,9 @@ def main() -> None:
     p.add_argument("--providers", nargs="+",
                    default=["azure", "openrouter"],
                    help="Subset of {azure, openrouter, openrouter_qwen35plus}.")
+    p.add_argument("--variant", default=None,
+                   choices=["v3a", "v3b", "v3c", "v3d", "v3e", "v3f"],
+                   help="Use a v3 prompt variant instead of the default v2 builder.")
     p.add_argument("--limit", type=int, default=None,
                    help="Cap images per provider (handy for smoke tests).")
     p.add_argument("--max-cost-usd", type=float, default=5.0,
@@ -250,10 +258,28 @@ def main() -> None:
                    help="Wipe traces file before running.")
     args = p.parse_args()
 
-    bench_csv = Path(args.bench_csv)
-    seed_dir = Path(args.seed_dir)
-    traces_path = Path(args.traces)
-    report_path = Path(args.report)
+    bench_csv = Path(args.bench_csv).resolve()
+    seed_dir = Path(args.seed_dir).resolve()
+    traces_path = Path(args.traces).resolve()
+    report_path = Path(args.report).resolve()
+
+    # When a variant is requested and the user hasn't overridden the default
+    # trace/report paths, auto-suffix them so variant runs don't clobber the
+    # locked baseline files.
+    variant: str | None = args.variant
+    if variant and traces_path == TRACES_DEFAULT:
+        traces_path = ROOT / f"reports/vlm_variant_traces_{variant}.jsonl"
+    if variant and report_path == REPORT_DEFAULT:
+        report_path = ROOT / f"reports/vlm_variant_{variant}.json"
+
+    # Build the messages function to use for this run.
+    if variant:
+        from functools import partial
+        from cascade_defect.vlm.prompt_v3 import build_messages as _v3_build
+        messages_fn = partial(_v3_build, variant=variant)
+        print(f"Prompt variant: {variant} (prompt_v3)")
+    else:
+        messages_fn = None  # clients fall back to the default v2 builder
 
     if args.reset and traces_path.exists():
         traces_path.unlink()
@@ -282,12 +308,13 @@ def main() -> None:
         print(f"\n=== {client.provider} / {client.model} ===")
         for i, (img_path, true_lbl) in enumerate(rows, 1):
             rel = str(img_path.relative_to(ROOT))
-            if (rel, client.provider, client.model) in seen:
+            if (rel, client.provider, client.model, variant or "") in seen:
                 n_skipped += 1
                 continue
             if args.limit is not None and n_done >= args.limit:
                 break
-            r = client.predict(img_path, seed_dir, domain="metal")
+            r = client.predict(img_path, seed_dir, domain="metal",
+                               messages_fn=messages_fn)
             pred = (r.prediction.defect_class if r.prediction else None)
             pred_norm = normalize_label(pred)
             rec = {
@@ -295,6 +322,7 @@ def main() -> None:
                 "true_class": true_lbl,
                 "provider": client.provider,
                 "model": client.model,
+                "variant": variant or "",
                 "predicted_class_raw": pred,
                 "predicted_class": pred_norm,
                 "confidence": (r.prediction.confidence if r.prediction else None),

@@ -13,7 +13,9 @@ from typing import Any
 
 from openai import AzureOpenAI, OpenAI
 
-from .prompt import DefectPrediction, build_messages
+from collections.abc import Callable
+
+from .prompt import DefectPrediction, build_messages as _default_build_messages
 
 logger = logging.getLogger(__name__)
 
@@ -109,15 +111,17 @@ class AzureOpenAIClient(VLMClient):
         self.price_out = price_out if price_out is not None else self.DEFAULT_PRICE_OUT
 
     def predict(self, image_path: Path, seed_dir: Path,
-                *, domain: str | None = None) -> VLMResponse:
-        messages = build_messages(image_path, seed_dir, domain=domain)
+                *, domain: str | None = None,
+                messages_fn: Callable | None = None) -> VLMResponse:
+        builder = messages_fn or _default_build_messages
+        messages = builder(image_path, seed_dir, domain=domain)
         t0 = time.perf_counter()
         try:
             resp = self._client.beta.chat.completions.parse(
                 model=self.model,
                 messages=messages,
                 response_format=DefectPrediction,
-                max_tokens=200,
+                max_tokens=300,
                 temperature=0,
             )
         except Exception as exc:  # noqa: BLE001
@@ -157,7 +161,9 @@ class OpenRouterClient(VLMClient):
 
     def __init__(self, model: str,
                  price_in: float, price_out: float,
-                 api_key: str | None = None):
+                 api_key: str | None = None,
+                 extra_headers: dict | None = None,
+                 extra_body: dict | None = None):
         api_key = api_key or os.environ.get("OPENROUTER_API_KEY")
         if not api_key:
             raise RuntimeError("OPENROUTER_API_KEY must be set in the environment.")
@@ -165,17 +171,34 @@ class OpenRouterClient(VLMClient):
         self.model = model
         self.price_in = price_in
         self.price_out = price_out
+        # Extra headers forwarded to OpenRouter (e.g. HTTP-Referer for ranking).
+        self._extra_headers: dict = {
+            "HTTP-Referer": "https://github.com/jonathanjayes/Scratching-the-Surface",
+            "X-Title": "cascade-defect-vlm-bench",
+            **(extra_headers or {}),
+        }
+        # Extra body forwarded verbatim to OpenRouter provider routing.
+        # require_parameters=True pins a consistent upstream that honours the
+        # full request spec (avoids quantisation variance across upstream hops).
+        self._extra_body: dict = {
+            "provider": {"require_parameters": True},
+            **(extra_body or {}),
+        }
 
     def predict(self, image_path: Path, seed_dir: Path,
-                *, domain: str | None = None) -> VLMResponse:
-        messages = build_messages(image_path, seed_dir, domain=domain)
+                *, domain: str | None = None,
+                messages_fn: Callable | None = None) -> VLMResponse:
+        builder = messages_fn or _default_build_messages
+        messages = builder(image_path, seed_dir, domain=domain)
         t0 = time.perf_counter()
         try:
             resp = self._client.chat.completions.create(
                 model=self.model,
                 messages=messages,
-                max_tokens=200,
+                max_tokens=300,
                 temperature=0,
+                extra_headers=self._extra_headers,
+                extra_body=self._extra_body,
             )
         except Exception as exc:  # noqa: BLE001
             return VLMResponse(provider=self.provider, model=self.model,

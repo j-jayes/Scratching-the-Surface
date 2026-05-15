@@ -1,0 +1,74 @@
+{
+  "providers": [
+    {
+      "provider": "openrouter",
+      "model": "qwen/qwen3-vl-30b-a3b-instruct",
+      "n_total": 50,
+      "n_scored": 50,
+      "api_failures": 0,
+      "json_parse_failures": 0,
+      "accuracy": 0.36,
+      "macro_f1_5class": 0.2939,
+      "binary_defect_vs_normal": {
+        "precision": 0.7647,
+        "recall": 0.65,
+        "f1": 0.7027,
+        "tp": 26,
+        "fp": 8,
+        "fn": 14,
+        "tn": 2
+      },
+      "per_class": {
+        "inclusion": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 10
+        },
+        "no_defect": {
+          "precision": 0.125,
+          "recall": 0.2,
+          "f1": 0.1538,
+          "support": 10
+        },
+        "patch": {
+          "precision": 0.5556,
+          "recall": 1.0,
+          "f1": 0.7143,
+          "support": 10
+        },
+        "pitting": {
+          "precision": 0.5,
+          "recall": 0.1,
+          "f1": 0.1667,
+          "support": 10
+        },
+        "scratch": {
+          "precision": 0.3846,
+          "recall": 0.5,
+          "f1": 0.4348,
+          "support": 10
+        }
+      },
+      "unknown_predictions": {},
+      "latency_s": {
+        "n": 50,
+        "mean": 5.863,
+        "p50": 5.096,
+        "p95": 10.43
+      },
+      "cost_usd": {
+        "total": 0.0226,
+        "mean_per_image": 0.000451,
+        "per_1k": 0.4514
+      },
+      "tokens": {
+        "in_mean": 3053.4,
+        "out_mean": 104.7
+      }
+    }
+  ],
+  "bench_csv": "data/splits_metal_v2/vlm_dev.csv",
+  "seed_dir": "data/splits_metal_v2/seed",
+  "n_bench_images": 50
+}
